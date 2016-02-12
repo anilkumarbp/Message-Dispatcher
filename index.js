@@ -1,5 +1,7 @@
 #! /usr/bin/env node
 
+// Handle local development and testing
+require('dotenv').config();
 
 (function() {
 
@@ -10,9 +12,9 @@ var fs = require('fs');
 var extensions = [];
 var activecalls = [];
 var rcsdk = new RCSDK({
-	server: 'https://platform.devtest.ringcentral.com', // https://platform.ringcentral.com ( Production )
-	appKey: 'yourAppSecret',
-	appSecret: 'yourAppKey'
+	server: process.env.RC_API_BASE_URL,
+	appKey: process.env.RC_APP_KEY,
+	appSecret: process.env.RC_APP_SECRET
 });
 
 
@@ -39,9 +41,9 @@ var activeCalls = function() {
 
 // Authenticate
 platform.authorize({
-	username: 'Your Username',            // Enter the usernmae
-	extension: 'your Extension',          // Enter the extension
-	password: 'your password',            // Enter the password
+	username: process.env.RC_USERNAME,            // Enter the usernmae
+	extension: process.env.RC_EXTENSION,          // Enter the extension
+	password: process.env.RC_PASSWORD,            // Enter the password
 	remember: 'true'
 }).then(function(response){
   
@@ -97,7 +99,7 @@ platform.authorize({
                  }
 
                  // Keep pulling the active calls
-                     setInterval(activeCalls(), 6000);
+                     setInterval(activeCalls, 6000);
 
                  // Create a subscription
                      var subscription = rcsdk.getSubscription();

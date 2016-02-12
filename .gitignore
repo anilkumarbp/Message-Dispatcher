@@ -31,3 +31,6 @@ node_modules
 
 # Optional REPL history
 .node_repl_history
+
+# Ignore production .env file as these values should be loaded via the PaaS inteface for each instance of 1000 extensions to monitor (max)
+.env
