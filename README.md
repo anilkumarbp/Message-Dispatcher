@@ -22,7 +22,7 @@ npm start
 
 ## To subscribe to all the extensions on an account follow the steps marked below :
 
-Open the file index.js and add the following :
+Open the file [index.js](https://github.com/anilkumarbp/Message-Dispatcher/blob/master/index.js) and add the following :
 * appKey
 * appSecret
 * Username
