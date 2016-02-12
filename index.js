@@ -99,7 +99,7 @@ platform.authorize({
                  }
 
                  // Keep pulling the active calls
-                     setInterval(activeCalls(), 6000);
+                     setInterval(activeCalls, 6000);
 
                  // Create a subscription
                      var subscription = rcsdk.getSubscription();
