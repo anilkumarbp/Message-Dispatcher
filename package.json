@@ -8,7 +8,7 @@
    "test": "test"
   },
   "author": "anil.kumar@ringcentral.com",
-  "license": "ISC",
+  "license": "MIT",
   "homepage": "https://developer.ringcentral.com/api-docs/latest/index.html#!#Notifications.html",
   "dependencies": {
     "rcsdk": "^1.3.2"
