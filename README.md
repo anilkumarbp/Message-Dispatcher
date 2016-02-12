@@ -65,4 +65,4 @@ Please report these on [GitHub](https://github.com/anilkumarbp/Message-Dispatche
 
 RingCentral SDK is available under an MIT-style license. See [LICENSE.txt](LICENSE.txt) for details.
 
-RingCentral SDK &copy; 2015 by RingCentral
+RingCentral SDK &copy; 2016 by RingCentral
