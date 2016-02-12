@@ -1,35 +1,34 @@
-# Message-Dispatcher
-
-
 Message-Dispatcher
 =======================
 
-Subscription_Generator allows you to create subscription for all the extensions enabling you to listen to Presence events and message-store notifications when a call/messages comes into **ANY** of the extension. For more information, see the 
+Message-Dispatcher allows you to create subscription for all the extensions enabling you to listen to Presence events and message-store notifications when a call/messages comes into a specific extension and dispatch a message ( send SMS ). For more information, see the 
 [Developer Guide](https://developer.ringcentral.com/api-docs/latest/index.html#!#Notifications.html).
 
 ## Getting Started
 
-To subscribe to all the extensions on an account follow the steps marked below :
-
-1. [Authorize using an Admin User](http://ringcentral.github.io/api-explorer/#!/Authentication/oauth_token_post)
-2. [Retreive all the extensions](http://ringcentral.github.io/api-explorer/#!/Account_and_Extension_Information/v1_0_account__accountId__extension_get)
-3. [Set Subscription Events/EventFilters](http://ringcentral.github.io/api-explorer/#!/Notifications/v1_0_subscription_post)
-4. [Register Subscription](http://ringcentral.github.io/api-explorer/#!/Notifications/v1_0_subscription_post)
-
-
-## Building
+## Installation
 
 Fork and clone the repository. Then, install dependencies with
 
 ```
-git clone https://github.com/anilkumarbp/Subscriptions_Generator.git
+git clone https://github.com/anilkumarbp/Message-Dispatcher.git
 ```
 ```
 npm install
 ```
 ```
-node index.js
+npm start
 ```
+
+## To subscribe to all the extensions on an account follow the steps marked below :
+
+Open the file index.js and add the following :
+* appKey
+* appSecret
+* Username
+* extension
+* password
+
 
 ## Dependencies
 
@@ -42,7 +41,7 @@ Current used RCSDK version for this demo is :
 
 Project Repo
 
-* https://github.com/anilkumarbp/Subscriptions_Generator
+* https://github.com/anilkumarbp/Message-Dispatcher
 
 RingCentral SDK for JavaScript
 
@@ -60,7 +59,7 @@ RingCentral API Explorer
 
 Any reports of problems, comments or suggestions are most welcome.
 
-Please report these on [GitHub](https://github.com/anilkumarbp/Subscriptions_Generator).
+Please report these on [GitHub](https://github.com/anilkumarbp/Message-Dispatcher).
 
 ## License
 
