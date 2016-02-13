@@ -13,7 +13,8 @@ var fs = require('fs');
 var http = require('http');
 
 // VARS
-var _watchedExtensions = {};
+var _watchedExtensions;
+var _extensionFilterArray = [];
 var Extension = helpers.extension();
 var server = http.createServer();
 
@@ -43,36 +44,54 @@ function init(options) {
 	//console.log( 'INIT OPTIONS: ', options );
 	options = options || {};
 
-	populateExtensions();
+	_watchedExtensions = createList();
+
+	subscription.setEventFilters();
+
 }
 
 /**
  * Application Functions
 **/
-function populateExtensions() {
+function createList() {
 	platform
-		.get(Extension.createUrl(), {
+		.get('/account/~/device', {
 			query: {
 				page: 1,
 				perPage: 1000
 			}
 		}).then(function(extensions) {
 			var data = JSON.parse(extensions._text);
-			// Create internal map of all extensions on account using extensionId as the key
-			for( var i = 0; i < data.records.length; i++ ) {
-				var p = data.records[i].uri.match(/(v1\.0)(.*)/) + '/presence?detailedTelephonyState=true';
-				p = p.split(',');
-				p = p[2];
-				_watchedExtensions[data.records[i].id] = {
-					contact: data.records[i].contact,
-					presenceFilter: p
-				};
-			}
-			console.log(_watchedExtensions);
+			var cleansedList = data.records.map(cleanList);
+			//console.log('CLEANSED LIST: ', cleansedList);
+			//console.log('EXTENSION FILTER ARRAY: ', _extensionFilterArray)
+			return cleansedList;
 		})
 		.catch(function(e) {
 			console.error(e);
 		});
+}
+
+function cleanList(ext, i, arr) {
+	var tmpObj = {};
+	if('SoftPhone' !== ext.type) {
+		tmpObj[ext.extension.id] = {
+			device: ext
+		};
+		_extensionFilterArray.push(generatePresenceEventFilter(ext.uri))
+	}
+	return tmpObj;
+}
+
+function generatePresenceEventFilter(uri) {
+	if(!uri) {
+		return '';
+	} else {
+		var p = uri.match(/(v1\.0)(.*)/) + '/presence?detailedTelephonyState=true';
+		p = p.split(',');
+		p = p[2];
+		return p;
+	}
 }
 
 // Server Event Listeners
