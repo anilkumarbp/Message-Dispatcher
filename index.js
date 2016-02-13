@@ -52,9 +52,12 @@ function init(options) {
 **/
 function populateExtensions() {
 	platform
-		//.get(Extension.loadRequest(), {query: {page: 1, perPage: 1000}}
-		.get(Extension.createUrl()
-		).then(function(extensions) {
+		.get(Extension.createUrl(), {
+			query: {
+				page: 1,
+				perPage: 1000
+			}
+		}).then(function(extensions) {
 			console.log(extensions);
 		})
 		.catch(function(e) {
