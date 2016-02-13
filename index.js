@@ -55,17 +55,17 @@ platform.authorize({
         //********** Retreive Account Active calls numbers from the extension ********************
         //     //ret  reive all the numbers associated with this extension
 
-        platform.get('/account/~/extension')
-            .then(function(response){
-
-                var apiresponse = response.json;
-                console.log("********************Phone Numbers for the Extension*********************");
-                console.log(JSON.stringify(response.data, null, 2));
-
-            })
-            .catch(function(e){
-                console.error('Error ' + e.stack);
-            });
+        //platform.get('/account/~/extension')
+        //    .then(function(response){
+        //
+        //        var apiresponse = response.json;
+        //        console.log("********************Phone Numbers for the Extension*********************");
+        //        console.log(JSON.stringify(response.data, null, 2));
+        //
+        //    })
+        //    .catch(function(e){
+        //        console.error('Error ' + e.stack);
+        //    });
 
      //********** Retreive Phone numbers from the extension ********************
          //ret  reive all the numbers associated with this extension
@@ -93,13 +93,13 @@ platform.authorize({
 
                      if (apiresponse.records[key].hasOwnProperty('extensionNumber')) {
                          extension_number = parseInt(apiresponse.records[key].id);
-                         extensions.push(['/account/~/extension/' + extension_number + '/presence']);
+                         extensions.push(['/account/~/extension/' + extension_number + '/presence?detailedTelephonyState=true']);
                          extensions.push(['/account/~/extension/' + extension_number + '/message-store']);
                      }
                  }
 
                  // Keep pulling the active calls
-                     setInterval(activeCalls, 6000);
+                     setInterval(activeCalls, 10000);
 
                  // Create a subscription
                      var subscription = rcsdk.getSubscription();
@@ -111,17 +111,27 @@ platform.authorize({
                          console.log("A new Event");
                          console.log("***********");
                          console.log(JSON.stringify(msg));
+                         console.log(msg.body);
+                         console.log(msg.body.telephonyStatus);
+                         console.log(msg.body.activeCalls[0].to);
 
-                         if(msg.body.telephonyStatus == "CallConnected") {
 
-                              for(var key in records.records) {
-                                  if(records[key].result == "Call connected") {
-                                      if(records[key].to.phoneNumber == "511") {
-                                          console.log("511 identified");
-                                      }
-                                  }
-                              }
+                         if(msg.body.telephonyStatus == "CallConnected" && msg.body.activeCalls[0].direction == "Outbound" && msg.body.activeCalls[0].to == "18315941779") {
 
+                             // send an SMS on the outbound call
+                             platform.post('/account/~/extension/~/sms', {
+                                 body: {
+                                     from: {phoneNumber: msg.body.activeCalls[0].from}, // Your sms-enabled phone number
+                                     to: [
+                                         {phoneNumber: 18315941779} // Second party's phone number
+                                     ],
+                                     text: "511 is coming to pick you up"
+                                 }
+                             }).then(function(response) {
+                                console.log("Succesfully notified about the 511 request");
+                             }).catch(function(e) {
+                                 alert('Error: ' + e.message);
+                             });
                          }
 
                      });
