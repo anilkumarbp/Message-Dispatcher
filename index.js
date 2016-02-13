@@ -13,7 +13,7 @@ var fs = require('fs');
 var http = require('http');
 
 // VARS
-var _watchedExtensions;
+var _cachedList = {};
 var _extensionFilterArray = [];
 var Extension = helpers.extension();
 var server = http.createServer();
@@ -39,62 +39,61 @@ platform.login({
 // Start the server
 server.listen(PORT);
 
-// Once we have a valid access token, we are ready to begin
+// GO!
 function init(options) {
-	//console.log( 'INIT OPTIONS: ', options );
 	options = options || {};
 
-	_watchedExtensions = createList();
-
-	subscription.setEventFilters(_extensionFilterArray);
-
-	subscription.register();
-
-}
-
-/**
- * Application Functions
-**/
-function createList() {
 	platform
 		.get('/account/~/device', {
 			query: {
 				page: 1,
 				perPage: 1000
 			}
-		}).then(function(extensions) {
-			var data = JSON.parse(extensions._text);
-			var cleansedList = data.records.map(cleanList);
-			//console.log('CLEANSED LIST: ', cleansedList);
-			//console.log('EXTENSION FILTER ARRAY: ', _extensionFilterArray)
-			return cleansedList;
 		})
+		.then(parseResponse)
+		.then(function(data) {
+			return data.records.filter(getPhysicalDevices).map(organize);
+		})
+		.then(startSubscription)
 		.catch(function(e) {
 			console.error(e);
 		});
 }
 
-function cleanList(ext, i, arr) {
-	var tmpObj = {};
-	if('SoftPhone' !== ext.type) {
-		tmpObj[ext.extension.id] = {
-			device: ext
-		};
-		_extensionFilterArray.push(generatePresenceEventFilter(ext.uri))
-	}
-	return tmpObj;
+/**
+ * Application Functions
+**/
+function parseResponse(response) {
+	return JSON.parse(response._text);
 }
 
-function generatePresenceEventFilter(uri) {
-	if(!uri) {
-		return '';
+function organize(ext, i, arr) {
+	_extensionFilterArray.push(generatePresenceEventFilter(ext))
+	_cachedList[ext.extension.id] = ext;
+}
+
+function getPhysicalDevices(device) {
+	var isPhysical = ('SoftPhone' !== device.type)
+		? true 
+		: false;
+	//console.log( device.type + ' - isPysical: ', isPhysical );
+	return isPhysical;
+}
+
+function generatePresenceEventFilter(item) {
+	if(!item) {
+		throw new Error('Message-Dispatcher Error: generatePresenceEventFilter requires a parameter');
 	} else {
-		var p = uri.match(/(v1\.0)(.*)/) + '/presence?detailedTelephonyState=true';
-		p = p.split(',');
-		p = p[2];
-		return p;
+		return '/account/~/extension/' + item.extension.id + '/presence?detailedTelephonyState=true';
 	}
 }
+
+function startSubscription(options) {
+	options = options || {};
+	subscription.setEventFilters(_extensionFilterArray);
+	subscription.register();
+}
+
 
 // Server Event Listeners
 server.on('request', inboundRequest);
@@ -136,58 +135,58 @@ function inboundRequest(req, res) {
 /**
  * Subscription Event Handlers
 **/
-function handleSubscriptionNotification(data) {
-	//console.log('SUBSCRIPTION NOTIFICATION DATA: ', data);
+function handleSubscriptionNotification(msg) {
+	console.log('SUBSCRIPTION NOTIFICATION: ', msg);
 }
 
 function handleRemoveSubscriptionSuccess(data) {
-	//console.log('REMOVE SUBSCRIPTION SUCCESS DATA: ', data);
+	console.log('REMOVE SUBSCRIPTION SUCCESS DATA: ', data);
 }
 
 function handleRemoveSubscriptionError(data) {
-	//console.log('REMOVE SUBSCRIPTION ERROR DATA: ', data);
+	console.log('REMOVE SUBSCRIPTION ERROR DATA: ', data);
 }
 
 function handleSubscriptionRenewSuccess(data) {
-	//console.log('RENEW SUBSCRIPTION SUCCESS DATA: ', data);
+	console.log('RENEW SUBSCRIPTION SUCCESS DATA: ', data);
 }
 
 function handleSubscriptionRenewError(data) {
-	//console.log('RENEW SUBSCRIPTION ERROR DATA: ', data);
+	console.log('RENEW SUBSCRIPTION ERROR DATA: ', data);
 }
 
 function handleSubscribeSucess(data) {
-	//console.log('SUBSCRIPTION CREATED SUCCESSFULLY: ', data);
+	console.log('SUBSCRIPTION CREATED SUCCESSFULLY');
 }
 
 function handleSubscribeError(data) {
-	//console.log('FAILED TO CREATE SUBSCRIPTION: ', data);
+	console.log('FAILED TO CREATE SUBSCRIPTION: ', data);
 }
 
 /**
  * Platform Event Handlers
 **/
 function handleLoginSuccess(data) {
-	////console.log('LOGIN SUCCESS DATA: ', data);
+	//console.log('LOGIN SUCCESS DATA: ', data);
 	init(data);
 }
 
 function handleLoginError(data) {
-	//console.log('LOGIN FAILURE DATA: ', data);
+	console.log('LOGIN FAILURE DATA: ', data);
 }
 
 function handleLogoutSuccess(data) {
-	//console.log('LOGOUT SUCCESS DATA: ', data);
+	console.log('LOGOUT SUCCESS DATA: ', data);
 }
 
 function handleLogoutError(data) {
-	//console.log('LOGOUT FAILURE DATA: ', data);
+	console.log('LOGOUT FAILURE DATA: ', data);
 }
 
 function handleRefreshSuccess(data) {
-	//console.log('REFRESH SUCCESS DATA: ', data);
+	console.log('REFRESH SUCCESS DATA: ', data);
 }
 
 function handleRefreshError(data) {
-	//console.log('REFRESH FAILURE DATA: ', data);
+	console.log('REFRESH FAILURE DATA: ', data);
 }
