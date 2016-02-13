@@ -13,8 +13,7 @@ var fs = require('fs');
 var http = require('http');
 
 // VARS
-var extensions = {};
-var activecalls = [];
+var _watchedExtensions = {};
 var Extension = helpers.extension();
 var server = http.createServer();
 
@@ -58,7 +57,18 @@ function populateExtensions() {
 				perPage: 1000
 			}
 		}).then(function(extensions) {
-			console.log(extensions);
+			var data = JSON.parse(extensions._text);
+			// Create internal map of all extensions on account using extensionId as the key
+			for( var i = 0; i < data.records.length; i++ ) {
+				var p = data.records[i].uri.match(/(v1\.0)(.*)/) + '/presence?detailedTelephonyState=true';
+				p = p.split(',');
+				p = p[2];
+				_watchedExtensions[data.records[i].id] = {
+					contact: data.records[i].contact,
+					presenceFilter: p
+				};
+			}
+			console.log(_watchedExtensions);
 		})
 		.catch(function(e) {
 			console.error(e);
@@ -99,210 +109,64 @@ subscription.on(subscription.events.subscribeError, handleSubscribeError);
 
 // Server Request Handler
 function inboundRequest(req, res) {
-	console.log('REQUEST: ', req);
+	//console.log('REQUEST: ', req);
 }
 
 /**
  * Subscription Event Handlers
 **/
 function handleSubscriptionNotification(data) {
-	console.log('SUBSCRIPTION NOTIFICATION DATA: ', data);
+	//console.log('SUBSCRIPTION NOTIFICATION DATA: ', data);
 }
 
 function handleRemoveSubscriptionSuccess(data) {
-	console.log('REMOVE SUBSCRIPTION SUCCESS DATA: ', data);
+	//console.log('REMOVE SUBSCRIPTION SUCCESS DATA: ', data);
 }
 
 function handleRemoveSubscriptionError(data) {
-	console.log('REMOVE SUBSCRIPTION ERROR DATA: ', data);
+	//console.log('REMOVE SUBSCRIPTION ERROR DATA: ', data);
 }
 
 function handleSubscriptionRenewSuccess(data) {
-	console.log('RENEW SUBSCRIPTION SUCCESS DATA: ', data);
+	//console.log('RENEW SUBSCRIPTION SUCCESS DATA: ', data);
 }
 
 function handleSubscriptionRenewError(data) {
-	console.log('RENEW SUBSCRIPTION ERROR DATA: ', data);
+	//console.log('RENEW SUBSCRIPTION ERROR DATA: ', data);
 }
 
 function handleSubscribeSucess(data) {
-	console.log('SUBSCRIPTION CREATED SUCCESSFULLY: ', data);
+	//console.log('SUBSCRIPTION CREATED SUCCESSFULLY: ', data);
 }
 
 function handleSubscribeError(data) {
-	console.log('FAILED TO CREATE SUBSCRIPTION: ', data);
+	//console.log('FAILED TO CREATE SUBSCRIPTION: ', data);
 }
 
 /**
  * Platform Event Handlers
 **/
 function handleLoginSuccess(data) {
-	//console.log('LOGIN SUCCESS DATA: ', data);
+	////console.log('LOGIN SUCCESS DATA: ', data);
 	init(data);
 }
 
 function handleLoginError(data) {
-	console.log('LOGIN FAILURE DATA: ', data);
+	//console.log('LOGIN FAILURE DATA: ', data);
 }
 
 function handleLogoutSuccess(data) {
-	console.log('LOGOUT SUCCESS DATA: ', data);
+	//console.log('LOGOUT SUCCESS DATA: ', data);
 }
 
 function handleLogoutError(data) {
-	console.log('LOGOUT FAILURE DATA: ', data);
+	//console.log('LOGOUT FAILURE DATA: ', data);
 }
 
 function handleRefreshSuccess(data) {
-	console.log('REFRESH SUCCESS DATA: ', data);
+	//console.log('REFRESH SUCCESS DATA: ', data);
 }
 
 function handleRefreshError(data) {
-	console.log('REFRESH FAILURE DATA: ', data);
+	//console.log('REFRESH FAILURE DATA: ', data);
 }
-
-/*
-
-(function() {
-
-
-// Require RCSDK
-var RCSDK = require('rcsdk');
-var fs = require('fs');
-var extensions = [];
-var activecalls = [];
-var rcsdk = new RCSDK({
-	server: process.env.RC_API_BASE_URL,
-	appKey: process.env.RC_APP_KEY,
-	appSecret: process.env.RC_APP_SECRET
-});
-
-
-//Platform Singleton
-var platform = rcsdk.getPlatform();
-
-
-// Active calls function
-var activeCalls = function() {
-    platform.get('/account/~/active-calls', {
-            query: {
-                direction: "Outbound",  // Direction
-                type: "Voice"          // Type of call
-            }
-        })
-        .then(function(response){
-            activecalls = response.json.records;
-        })
-        .catch(function(e){
-            console.log('Error inside Subscription event for active calls :' + e.stack);
-        });
-}
-
-
-// Authenticate
-platform.authorize({
-	username: process.env.RC_USERNAME,            // Enter the usernmae
-	extension: process.env.RC_EXTENSION,          // Enter the extension
-	password: process.env.RC_PASSWORD,            // Enter the password
-	remember: 'true'
-}).then(function(response){
-  
-    platform.auth = response.json;
-    console.log('Authentication success');
-    console.log(JSON.stringify(response.data, null, 2));
-
-
-        //********** Retreive Account Active calls numbers from the extension ********************
-        //     //ret  reive all the numbers associated with this extension
-
-        platform.get('/account/~/extension')
-            .then(function(response){
-
-                var apiresponse = response.json;
-                console.log("********************Phone Numbers for the Extension*********************");
-                console.log(JSON.stringify(response.data, null, 2));
-
-            })
-            .catch(function(e){
-                console.error('Error ' + e.stack);
-            });
-
-     //********** Retreive Phone numbers from the extension ********************
-         //ret  reive all the numbers associated with this extension
-    platform.get('/account/~/device')
-        .then(function(response){
-
-            var apiresponse = response.json;
-            console.log("**************** Extensions Device List  ***********************");
-            console.log(JSON.stringify(response.data, null, 2));
-
-        })
-        .catch(function(e){
-            console.error('Error ' + e.stack);
-        });
-
-
-        //********** Setup Subscriptions ********************
-        //retreive all the extensions for this account
-        platform.get('/account/~/extension/')
-                 .then(function(response){
-                     console.log(JSON.stringify(response.data, null, 2));
-                   var apiresponse = response.json;
-                   for(var key in apiresponse.records) {
-                     var extension_number = "";
-
-                     if (apiresponse.records[key].hasOwnProperty('extensionNumber')) {
-                         extension_number = parseInt(apiresponse.records[key].id);
-                         extensions.push(['/account/~/extension/' + extension_number + '/presence']);
-                         extensions.push(['/account/~/extension/' + extension_number + '/message-store']);
-                     }
-                 }
-
-                 // Keep pulling the active calls
-                     setInterval(activeCalls, 6000);
-
-                 // Create a subscription
-                     var subscription = rcsdk.getSubscription();
-                     console.log("*************** Subscription: *****************", subscription);
-
-                     subscription.setEvents(extensions);
-
-                     subscription.on(subscription.events.notification, function(msg) {
-                         console.log("A new Event");
-                         console.log("***********");
-                         console.log(JSON.stringify(msg));
-
-                         if(msg.body.telephonyStatus == "CallConnected") {
-
-                              for(var key in records.records) {
-                                  if(records[key].result == "Call connected") {
-                                      if(records[key].to.phoneNumber == "511") {
-                                          console.log("511 identified");
-                                      }
-                                  }
-                              }
-
-                         }
-
-                     });
-
-                     return subscription.register();
-
-               })
-               .then(function(response) {
-                     console.log('Subscription success');
-                     console.log(JSON.stringify(response.data, null, 2));;
-               })
-               .catch(function(e){
-                 console.error('Error ' + e.stack);
-               });
-
-
-   })
-   .catch(function(e){
-    console.error('Error ' + e.stack);
-  });
-
-
-  }) ();       
-*/
