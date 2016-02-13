@@ -5,6 +5,12 @@ require('dotenv').config();
 
 // CONSTANTS
 var PORT = 3000;
+var FILTER_DIRECTION = 'Outbound';
+var FILTER_TO = '511';
+// TODO: ADD YOUR NUMBERS TO RECEIVE THE ALERTS
+var PRIORITY_RESPONSE_TEAM_SMS_NUMBERS = [
+	'3176009731'
+];
 
 // Dependencies
 var RC = require('ringcentral');
@@ -63,6 +69,10 @@ function init(options) {
 /**
  * Application Functions
 **/
+function deliverAlerts(data) {
+	// TODO: SEND THE ALERTS ON THE PROPER CHANNELS, USE THE CONSTANT ABOVE FOR THE TARGET SMS NUMBERS OF PRIORITY RESPONSE TEAM
+}
+
 function parseResponse(response) {
 	return JSON.parse(response._text);
 }
@@ -92,6 +102,19 @@ function startSubscription(options) {
 	options = options || {};
 	subscription.setEventFilters(_extensionFilterArray);
 	subscription.register();
+}
+
+function sendAlerts(eventData) {
+	// TODO: Lookup Extension to capture user emergency information
+	platform
+		.get(Extension.createUrl(eventData.extension.id))
+		.then(function(response){
+			return JSON.parse(response);
+		})
+		.then(deliverAlerts)
+		.catch(function(e) {
+			console.error(e);
+		});
 }
 
 
@@ -137,6 +160,14 @@ function inboundRequest(req, res) {
 **/
 function handleSubscriptionNotification(msg) {
 	console.log('SUBSCRIPTION NOTIFICATION: ', msg);
+	// TODO: NEED TO BE SURE THIS IS THE RIGHT DATA UPON WHICH TO FILTER
+	// Use these constants to filter, not literals: FILTER_DIRECTION and FILTER_TO
+	// To modify operation for development, just change these values in the constants
+	if(msg.body.direction && msg.body.to) {
+		if(msg.body.direction === FILTER_DIRECTION && msg.body.to === FILTER_TO) {
+			sendAlerts(msg.body);
+		}
+	}
 }
 
 function handleRemoveSubscriptionSuccess(data) {
