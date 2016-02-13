@@ -6,9 +6,9 @@ require('dotenv').config();
 // CONSTANTS
 var PORT = 3000;
 var FILTER_DIRECTION = 'Outbound';
-var FILTER_TO = '511';
+var FILTER_TO = '511'; // Using 511 as it is the right thing to filter upon for now
 // TODO: ADD YOUR NUMBERS TO RECEIVE THE ALERTS
-var PRIORITY_RESPONSE_TEAM_SMS_NUMBERS = [
+var ALERT_SMS = [
 	'3176009731'
 ];
 
@@ -22,6 +22,7 @@ var http = require('http');
 var _cachedList = {};
 var _extensionFilterArray = [];
 var Extension = helpers.extension();
+var Message = helpers.message();
 var server = http.createServer();
 
 // Initialize the SDK
@@ -69,17 +70,16 @@ function init(options) {
 /**
  * Application Functions
 **/
-function deliverAlerts(data) {
+function sendAlerts(data) {
 	// TODO: SEND THE ALERTS ON THE PROPER CHANNELS, USE THE CONSTANT ABOVE FOR THE TARGET SMS NUMBERS OF PRIORITY RESPONSE TEAM
-}
-
-function parseResponse(response) {
-	return JSON.parse(response._text);
-}
-
-function organize(ext, i, arr) {
-	_extensionFilterArray.push(generatePresenceEventFilter(ext))
-	_cachedList[ext.extension.id] = ext;
+	// TODO: Need to ETL victim data for outbound messaging
+	// TODO: Refactor to handle multiple channels for notification (such as webhooks, etc...)
+	var LENGTH = ALERT_SMS.length;
+	if(0 < LENGTH) {
+		for(var i = 0; i < LENGTH; i++) {
+			sendSms(data);
+		}
+	}
 }
 
 function getPhysicalDevices(device) {
@@ -98,22 +98,56 @@ function generatePresenceEventFilter(item) {
 	}
 }
 
+function loadAlertDataAndSend(eventData) {
+	// TODO: Lookup Extension to capture user emergency information
+	platform
+		.get(Extension.createUrl(eventData.extension.id))
+		.then(function(response){
+			// Extrapolate emergency information
+			return JSON.parse(response);
+		})
+		.then(sendAlerts)
+		.catch(function(e) {
+			console.error(e);
+		});
+}
+
+function organize(ext, i, arr) {
+	_extensionFilterArray.push(generatePresenceEventFilter(ext))
+	_cachedList[ext.extension.id] = ext;
+}
+
+function parseResponse(response) {
+	return JSON.parse(response._text);
+}
+
 function startSubscription(options) {
 	options = options || {};
 	subscription.setEventFilters(_extensionFilterArray);
 	subscription.register();
 }
 
-function sendAlerts(eventData) {
-	// TODO: Lookup Extension to capture user emergency information
+function sendSms(data) {
+	// For SMS, subject has 160 char max
 	platform
-		.get(Extension.createUrl(eventData.extension.id))
-		.then(function(response){
-			return JSON.parse(response);
+		.send({
+			url: Message.createUrl({sms}),
+			body: {
+				to: '',
+				from: '',
+				subject: ''
+			}
 		})
-		.then(deliverAlerts)
+		.then(function(response) {
+			// TODO: Check for error and handle
+			if(response.error) {
+				console.error(response.error);
+			} else {
+				return true;
+			}
+		})
 		.catch(function(e) {
-			console.error(e);
+			throw (e);
 		});
 }
 
@@ -165,7 +199,7 @@ function handleSubscriptionNotification(msg) {
 	// To modify operation for development, just change these values in the constants
 	if(msg.body.direction && msg.body.to) {
 		if(msg.body.direction === FILTER_DIRECTION && msg.body.to === FILTER_TO) {
-			sendAlerts(msg.body);
+			loadAlertDataAndSend(msg.body);
 		}
 	}
 }
