@@ -46,7 +46,9 @@ function init(options) {
 
 	_watchedExtensions = createList();
 
-	subscription.setEventFilters();
+	subscription.setEventFilters(_extensionFilterArray);
+
+	subscription.register();
 
 }
 
