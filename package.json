@@ -12,6 +12,7 @@
   "homepage": "https://developer.ringcentral.com/api-docs/latest/index.html#!#Notifications.html",
   "dependencies": {
     "dotenv": "^2.0.0",
-    "rcsdk": "^1.3.2"
+    "ringcentral": "^2.0.4",
+    "ringcentral-helpers": "^0.1.0"
   }
 }
