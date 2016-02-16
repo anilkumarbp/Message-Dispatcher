@@ -15,7 +15,6 @@ var ALERT_SMS = [
 // Dependencies
 var RC = require('ringcentral');
 var helpers = require('ringcentral-helpers');
-var fs = require('fs');
 var http = require('http');
 
 // VARS
