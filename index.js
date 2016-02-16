@@ -1,157 +1,257 @@
-#! /usr/bin/env node
+'use strict';
 
 // Handle local development and testing
 require('dotenv').config();
 
-(function() {
+// CONSTANTS
+var PORT = 3000;
+var FILTER_DIRECTION = 'Outbound';
+var FILTER_TO = '511'; // Using 511 as it is the right thing to filter upon for now
+// TODO: ADD YOUR NUMBERS TO RECEIVE THE ALERTS
+var ALERT_SMS = [
+	'3176009731'
+];
 
-
-// Require RCSDK
-var RCSDK = require('rcsdk');
+// Dependencies
+var RC = require('ringcentral');
+var helpers = require('ringcentral-helpers');
 var fs = require('fs');
-var extensions = [];
-var activecalls = [];
-var rcsdk = new RCSDK({
+var http = require('http');
+
+// VARS
+var _cachedList = {};
+var _extensionFilterArray = [];
+var Extension = helpers.extension();
+var Message = helpers.message();
+var server = http.createServer();
+
+// Initialize the SDK
+var SDK = new RC({
 	server: process.env.RC_API_BASE_URL,
 	appKey: process.env.RC_APP_KEY,
 	appSecret: process.env.RC_APP_SECRET
 });
 
+// Bootstrap Platform and Subscription
+var platform = SDK.platform();
+var subscription = SDK.createSubscription();
 
-//Platform Singleton
-var platform = rcsdk.getPlatform();
+// Login to the RingCentral Platform
+platform.login({
+	username: process.env.RC_USERNAME,
+	password: process.env.RC_PASSWORD,
+	extension: process.env.RC_EXTENSION 
+});
 
+// Start the server
+server.listen(PORT);
 
-// Active calls function
-var activeCalls = function() {
-    platform.get('/account/~/active-calls', {
-            query: {
-                direction: "Outbound",  // Direction
-                type: "Voice"          // Type of call
-            }
-        })
-        .then(function(response){
-            activecalls = response.json.records;
-        })
-        .catch(function(e){
-            console.log('Error inside Subscription event for active calls :' + e.stack);
-        });
+// GO!
+function init(options) {
+	options = options || {};
+
+	platform
+		.get('/account/~/device', {
+			query: {
+				page: 1,
+				perPage: 1000
+			}
+		})
+		.then(parseResponse)
+		.then(function(data) {
+			return data.records.filter(getPhysicalDevices).map(organize);
+		})
+		.then(startSubscription)
+		.catch(function(e) {
+			console.error(e);
+		});
+}
+
+/**
+ * Application Functions
+**/
+function sendAlerts(data) {
+	// TODO: SEND THE ALERTS ON THE PROPER CHANNELS, USE THE CONSTANT ABOVE FOR THE TARGET SMS NUMBERS OF PRIORITY RESPONSE TEAM
+	// TODO: Need to ETL victim data for outbound messaging
+	// TODO: Refactor to handle multiple channels for notification (such as webhooks, etc...)
+	var LENGTH = ALERT_SMS.length;
+	if(0 < LENGTH) {
+		for(var i = 0; i < LENGTH; i++) {
+			sendSms(data);
+		}
+	}
+}
+
+function getPhysicalDevices(device) {
+	var isPhysical = ('SoftPhone' !== device.type)
+		? true 
+		: false;
+	//console.log( device.type + ' - isPysical: ', isPhysical );
+	return isPhysical;
+}
+
+function generatePresenceEventFilter(item) {
+	if(!item) {
+		throw new Error('Message-Dispatcher Error: generatePresenceEventFilter requires a parameter');
+	} else {
+		return '/account/~/extension/' + item.extension.id + '/presence?detailedTelephonyState=true';
+	}
+}
+
+function loadAlertDataAndSend(eventData) {
+	// TODO: Lookup Extension to capture user emergency information
+	platform
+		.get(Extension.createUrl(eventData.extension.id))
+		.then(function(response){
+			// Extrapolate emergency information
+			return JSON.parse(response);
+		})
+		.then(sendAlerts)
+		.catch(function(e) {
+			console.error(e);
+		});
+}
+
+function organize(ext, i, arr) {
+	_extensionFilterArray.push(generatePresenceEventFilter(ext))
+	_cachedList[ext.extension.id] = ext;
+}
+
+function parseResponse(response) {
+	return JSON.parse(response._text);
+}
+
+function startSubscription(options) {
+	options = options || {};
+	subscription.setEventFilters(_extensionFilterArray);
+	subscription.register();
+}
+
+function sendSms(data) {
+	// For SMS, subject has 160 char max
+	platform
+		.send({
+			url: Message.createUrl({sms}),
+			body: {
+				to: '',
+				from: '',
+				subject: ''
+			}
+		})
+		.then(function(response) {
+			// TODO: Check for error and handle
+			if(response.error) {
+				console.error(response.error);
+			} else {
+				return true;
+			}
+		})
+		.catch(function(e) {
+			throw (e);
+		});
 }
 
 
-// Authenticate
-platform.authorize({
-	username: process.env.RC_USERNAME,            // Enter the usernmae
-	extension: process.env.RC_EXTENSION,          // Enter the extension
-	password: process.env.RC_PASSWORD,            // Enter the password
-	remember: 'true'
-}).then(function(response){
-  
-    platform.auth = response.json;
-    console.log('Authentication success');
-    console.log(JSON.stringify(response.data, null, 2));
+// Server Event Listeners
+server.on('request', inboundRequest);
 
+server.on('error', function(err) {
+	console.error(err);
+});
 
-        //********** Retreive Account Active calls numbers from the extension ********************
-        //     //ret  reive all the numbers associated with this extension
+server.on('listening', function() {
+	console.log('Server is listening to ', PORT);
+});
 
-        //platform.get('/account/~/extension')
-        //    .then(function(response){
-        //
-        //        var apiresponse = response.json;
-        //        console.log("********************Phone Numbers for the Extension*********************");
-        //        console.log(JSON.stringify(response.data, null, 2));
-        //
-        //    })
-        //    .catch(function(e){
-        //        console.error('Error ' + e.stack);
-        //    });
+server.on('close', function() {
+	console.log('Server has closed and is no longer accepting connections');
+});
 
-     //********** Retreive Phone numbers from the extension ********************
-         //ret  reive all the numbers associated with this extension
-    platform.get('/account/~/device')
-        .then(function(response){
+// Register Platform Event Listeners
+platform.on(platform.events.loginSuccess, handleLoginSuccess);
+platform.on(platform.events.loginError, handleLoginError);
+platform.on(platform.events.logoutSuccess, handleLogoutSuccess);
+platform.on(platform.events.logoutError, handleLogoutError);
+platform.on(platform.events.refreshSuccess, handleRefreshSuccess);
+platform.on(platform.events.refreshError, handleRefreshError);
 
-            var apiresponse = response.json;
-            console.log("**************** Extensions Device List  ***********************");
-            console.log(JSON.stringify(response.data, null, 2));
+// Register Subscription Event Listeners
+subscription.on(subscription.events.notification, handleSubscriptionNotification);
+subscription.on(subscription.events.removeSuccess, handleRemoveSubscriptionSuccess);
+subscription.on(subscription.events.removeError, handleRemoveSubscriptionError);
+subscription.on(subscription.events.renewSuccess, handleSubscriptionRenewSuccess);
+subscription.on(subscription.events.renewError, handleSubscriptionRenewError);
+subscription.on(subscription.events.subscribeSuccess, handleSubscribeSucess);
+subscription.on(subscription.events.subscribeError, handleSubscribeError);
 
-        })
-        .catch(function(e){
-            console.error('Error ' + e.stack);
-        });
+// Server Request Handler
+function inboundRequest(req, res) {
+	//console.log('REQUEST: ', req);
+}
 
+/**
+ * Subscription Event Handlers
+**/
+function handleSubscriptionNotification(msg) {
+	console.log('SUBSCRIPTION NOTIFICATION: ', msg);
+	// TODO: NEED TO BE SURE THIS IS THE RIGHT DATA UPON WHICH TO FILTER
+	// Use these constants to filter, not literals: FILTER_DIRECTION and FILTER_TO
+	// To modify operation for development, just change these values in the constants
+	if(msg.body.direction && msg.body.to) {
+		if(msg.body.direction === FILTER_DIRECTION && msg.body.to === FILTER_TO) {
+			loadAlertDataAndSend(msg.body);
+		}
+	}
+}
 
-        //********** Setup Subscriptions ********************
-        //retreive all the extensions for this account
-        platform.get('/account/~/extension/')
-                 .then(function(response){
-                     console.log(JSON.stringify(response.data, null, 2));
-                   var apiresponse = response.json;
-                   for(var key in apiresponse.records) {
-                     var extension_number = "";
+function handleRemoveSubscriptionSuccess(data) {
+	console.log('REMOVE SUBSCRIPTION SUCCESS DATA: ', data);
+}
 
-                     if (apiresponse.records[key].hasOwnProperty('extensionNumber')) {
-                         extension_number = parseInt(apiresponse.records[key].id);
-                         extensions.push(['/account/~/extension/' + extension_number + '/presence?detailedTelephonyState=true']);
-                         extensions.push(['/account/~/extension/' + extension_number + '/message-store']);
-                     }
-                 }
+function handleRemoveSubscriptionError(data) {
+	console.log('REMOVE SUBSCRIPTION ERROR DATA: ', data);
+}
 
-                 // Keep pulling the active calls
-                     setInterval(activeCalls, 10000);
+function handleSubscriptionRenewSuccess(data) {
+	console.log('RENEW SUBSCRIPTION SUCCESS DATA: ', data);
+}
 
-                 // Create a subscription
-                     var subscription = rcsdk.getSubscription();
-                     console.log("*************** Subscription: *****************", subscription);
+function handleSubscriptionRenewError(data) {
+	console.log('RENEW SUBSCRIPTION ERROR DATA: ', data);
+}
 
-                     subscription.setEvents(extensions);
+function handleSubscribeSucess(data) {
+	console.log('SUBSCRIPTION CREATED SUCCESSFULLY');
+}
 
-                     subscription.on(subscription.events.notification, function(msg) {
-                         console.log("A new Event");
-                         console.log("***********");
-                         console.log(JSON.stringify(msg));
-                         console.log(msg.body);
-                         console.log(msg.body.telephonyStatus);
-                         console.log(msg.body.activeCalls[0].to);
+function handleSubscribeError(data) {
+	console.log('FAILED TO CREATE SUBSCRIPTION: ', data);
+}
 
+/**
+ * Platform Event Handlers
+**/
+function handleLoginSuccess(data) {
+	//console.log('LOGIN SUCCESS DATA: ', data);
+	init(data);
+}
 
-                         if(msg.body.telephonyStatus == "CallConnected" && msg.body.activeCalls[0].direction == "Outbound" && msg.body.activeCalls[0].to == "18315941779") {
+function handleLoginError(data) {
+	console.log('LOGIN FAILURE DATA: ', data);
+}
 
-                             // send an SMS on the outbound call
-                             platform.post('/account/~/extension/~/sms', {
-                                 body: {
-                                     from: {phoneNumber: msg.body.activeCalls[0].from}, // Your sms-enabled phone number
-                                     to: [
-                                         {phoneNumber: 18315941779} // Second party's phone number
-                                     ],
-                                     text: "511 is coming to pick you up"
-                                 }
-                             }).then(function(response) {
-                                console.log("Succesfully notified about the 511 request");
-                             }).catch(function(e) {
-                                 alert('Error: ' + e.message);
-                             });
-                         }
+function handleLogoutSuccess(data) {
+	console.log('LOGOUT SUCCESS DATA: ', data);
+}
 
-                     });
+function handleLogoutError(data) {
+	console.log('LOGOUT FAILURE DATA: ', data);
+}
 
-                     return subscription.register();
+function handleRefreshSuccess(data) {
+	console.log('REFRESH SUCCESS DATA: ', data);
+}
 
-               })
-               .then(function(response) {
-                     console.log('Subscription success');
-                     console.log(JSON.stringify(response.data, null, 2));;
-               })
-               .catch(function(e){
-                 console.error('Error ' + e.stack);
-               });
-
-
-   })
-   .catch(function(e){
-    console.error('Error ' + e.stack);
-  });
-
-
-  }) ();       
+function handleRefreshError(data) {
+	console.log('REFRESH FAILURE DATA: ', data);
+}
