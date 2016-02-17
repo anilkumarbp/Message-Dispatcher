@@ -9,7 +9,7 @@ var FILTER_DIRECTION = 'Outbound';
 var FILTER_TO = '511'; // Using 511 as it is the right thing to filter upon for now
 // TODO: ADD YOUR NUMBERS TO RECEIVE THE ALERTS
 var ALERT_SMS = [
-	'3176009731'
+	'15856234190'
 ];
 
 // Dependencies
@@ -41,6 +41,8 @@ platform.login({
 	username: process.env.RC_USERNAME,
 	password: process.env.RC_PASSWORD,
 	extension: process.env.RC_EXTENSION 
+}).then(function(){
+
 });
 
 // Start the server
@@ -83,11 +85,7 @@ function sendAlerts(data) {
 }
 
 function getPhysicalDevices(device) {
-	var isPhysical = ('SoftPhone' !== device.type)
-		? true 
-		: false;
-	//console.log( device.type + ' - isPysical: ', isPhysical );
-	return isPhysical;
+	return ('SoftPhone' !== device.type && 'OtherPhone' !== device.type);
 }
 
 function generatePresenceEventFilter(item) {
@@ -104,6 +102,7 @@ function loadAlertDataAndSend(eventData) {
 		.get(Extension.createUrl(eventData.extension.id))
 		.then(function(response){
 			// Extrapolate emergency information
+			console.log("******* LoadAlerrtExtensionDataRespsone is :",JSON.stringify(response));
 			return JSON.parse(response);
 		})
 		.then(sendAlerts)
@@ -113,6 +112,7 @@ function loadAlertDataAndSend(eventData) {
 }
 
 function organize(ext, i, arr) {
+	console.log("Adding the presence event for :", generatePresenceEventFilter(ext));
 	_extensionFilterArray.push(generatePresenceEventFilter(ext))
 	_cachedList[ext.extension.id] = ext;
 }
@@ -124,6 +124,7 @@ function parseResponse(response) {
 function startSubscription(options) {
 	options = options || {};
 	subscription.setEventFilters(_extensionFilterArray);
+	//console.log('EXTENSIONS:', _extensionFilterArray);
 	subscription.register();
 }
 
@@ -133,9 +134,9 @@ function sendSms(data) {
 		.send({
 			url: Message.createUrl({sms}),
 			body: {
-				to: '',
-				from: '',
-				subject: ''
+				to: '18315941779',
+				from: '1585623138',
+				subject: 'test'
 			}
 		})
 		.then(function(response) {
@@ -181,7 +182,7 @@ subscription.on(subscription.events.removeSuccess, handleRemoveSubscriptionSucce
 subscription.on(subscription.events.removeError, handleRemoveSubscriptionError);
 subscription.on(subscription.events.renewSuccess, handleSubscriptionRenewSuccess);
 subscription.on(subscription.events.renewError, handleSubscriptionRenewError);
-subscription.on(subscription.events.subscribeSuccess, handleSubscribeSucess);
+subscription.on(subscription.events.subscribeSuccess, handleSubscribeSuccess);
 subscription.on(subscription.events.subscribeError, handleSubscribeError);
 
 // Server Request Handler
@@ -193,15 +194,18 @@ function inboundRequest(req, res) {
  * Subscription Event Handlers
 **/
 function handleSubscriptionNotification(msg) {
-	console.log('SUBSCRIPTION NOTIFICATION: ', msg);
+	console.log('SUBSCRIPTION NOTIFICATION: ', JSON.stringify(msg));
+	//console.log('SUBSCRIPTION NOTIFICATION: ', msg);
 	// TODO: NEED TO BE SURE THIS IS THE RIGHT DATA UPON WHICH TO FILTER
 	// Use these constants to filter, not literals: FILTER_DIRECTION and FILTER_TO
 	// To modify operation for development, just change these values in the constants
-	if(msg.body.direction && msg.body.to) {
-		if(msg.body.direction === FILTER_DIRECTION && msg.body.to === FILTER_TO) {
+	//if(msg.body.activeCalls[0].direction && msg.body.activeCalls[0].to) {
+		if(msg.body.activeCalls[0].direction === FILTER_DIRECTION && msg.body.activeCalls[0].to === FILTER_TO) {
+			//console.log("*********** ALERT COPS ***************");
+			console.log("The body passed to loadalertdta is :", JSON.stringify(msg.body));
 			loadAlertDataAndSend(msg.body);
 		}
-	}
+	//}
 }
 
 function handleRemoveSubscriptionSuccess(data) {
@@ -220,7 +224,7 @@ function handleSubscriptionRenewError(data) {
 	console.log('RENEW SUBSCRIPTION ERROR DATA: ', data);
 }
 
-function handleSubscribeSucess(data) {
+function handleSubscribeSuccess(data) {
 	console.log('SUBSCRIPTION CREATED SUCCESSFULLY');
 }
 
