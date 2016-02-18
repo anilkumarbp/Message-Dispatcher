@@ -77,6 +77,11 @@ To start this application locally:
 npm start
 ```
 
+To run the unit tests:
+```
+npm test
+```
+
 ## Dependencies
 
 Current used RCSDK version for this demo is :
