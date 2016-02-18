@@ -7,6 +7,8 @@ require('dotenv').config();
 var PORT = 3000;
 var FILTER_DIRECTION = 'Outbound';
 var FILTER_TO = '511'; // Using 511 as it is the right thing to filter upon for now
+var FILTER_DEVICE_TYPE = 'SoftPhone';
+var DEVICES_PER_PAGE = 1500;
 // TODO: ADD YOUR NUMBERS TO RECEIVE THE ALERTS
 var ALERT_SMS = [
 	'15856234190'
@@ -16,9 +18,12 @@ var ALERT_SMS = [
 var RC = require('ringcentral');
 var helpers = require('ringcentral-helpers');
 var http = require('http');
+/*
+Code is stubbed to break this into modules, but not implemented completely yet
 var SubscriptionManager = require('./lib/SubscriptionManager');
 var EventMonitor = require('./lib/EventMonitor');
 var AlertDispatcher = require('./lib/AlertDispatcher');
+*/
 
 // VARS
 var _cachedList = {};
@@ -58,7 +63,7 @@ function init(options) {
 		.get('/account/~/device', {
 			query: {
 				page: 1,
-				perPage: 1000
+				perPage: DEVICES_PER_PAGE
 			}
 		})
 		.then(parseResponse)
@@ -68,6 +73,7 @@ function init(options) {
 		.then(startSubscription)
 		.catch(function(e) {
 			console.error(e);
+			throw Error(e);
 		});
 }
 
@@ -75,10 +81,7 @@ function init(options) {
  * Application Functions
 **/
 function sendAlerts(data) {
-	// TODO: SEND THE ALERTS ON THE PROPER CHANNELS, USE THE CONSTANT ABOVE FOR THE TARGET SMS NUMBERS OF PRIORITY RESPONSE TEAM
-	// TODO: Need to ETL victim data for outbound messaging
 	// TODO: Refactor to handle multiple channels for notification (such as webhooks, etc...)
-	console.log("Send Alerts Method called");
 	var LENGTH = ALERT_SMS.length;
 	if(0 < LENGTH) {
 		for(var i = 0; i < LENGTH; i++) {
@@ -88,7 +91,7 @@ function sendAlerts(data) {
 }
 
 function getPhysicalDevices(device) {
-	return ('SoftPhone' !== device.type && 'OtherPhone' !== device.type);
+	return (FILTER_DEVICE_TYPE === device.type);
 }
 
 function generatePresenceEventFilter(item) {
@@ -106,9 +109,7 @@ function loadAlertDataAndSend(extensionId) {
 		.get(url)
 		.then(function(response){
 			// Extrapolate emergency information
-			console.log("******* LoadAlerrtExtensionDataRespsone is :", response._text);
 			//return JSON.parse(response._text);
-
 		})
 		.then(sendAlerts)
 		.catch(function(e) {
@@ -117,7 +118,7 @@ function loadAlertDataAndSend(extensionId) {
 }
 
 function organize(ext, i, arr) {
-	console.log("Adding the presence event for :", generatePresenceEventFilter(ext));
+	//console.log("Adding the presence event for :", generatePresenceEventFilter(ext));
 	_extensionFilterArray.push(generatePresenceEventFilter(ext))
 	_cachedList[ext.extension.id] = ext;
 }
@@ -135,20 +136,21 @@ function startSubscription(options) {
 
 function sendSms(data) {
 	// For SMS, subject has 160 char max
-	console.log("Inside sendSMS");
 	var url = Message.createUrl(option);
-	console.log("The Url is :" + url);
 	platform
 		.send({
 			url: Message.createUrl({options: sms},'131074004'),
 			body: {
-				to: ['18315941779'],
-				from: '15856234212',
-				subject: 'test'
+				from: {
+					phoneNumber: '15856234212'
+				},
+				to: {
+					phoneNumber: '18315941779'
+				},
+				text: 'SOMEONE CALLED' + FILTER_TO
 			}
 		})
 		.then(function(response) {
-			// TODO: Check for error and handle
 			if(response.error) {
 				console.error(response.error);
 			} else {
@@ -204,14 +206,8 @@ function inboundRequest(req, res) {
 **/
 function handleSubscriptionNotification(msg) {
 	console.log('SUBSCRIPTION NOTIFICATION: ', JSON.stringify(msg));
-	//console.log('SUBSCRIPTION NOTIFICATION: ', msg);
-	// TODO: NEED TO BE SURE THIS IS THE RIGHT DATA UPON WHICH TO FILTER
-	// Use these constants to filter, not literals: FILTER_DIRECTION and FILTER_TO
-	// To modify operation for development, just change these values in the constants
 	//if(msg.body.activeCalls[0].direction && msg.body.activeCalls[0].to) {
-		if(msg.body.activeCalls[0].direction === FILTER_DIRECTION && msg.body.activeCalls[0].to === FILTER_TO) {
-			console.log("*********** ALERT COPS ***************",msg.body.extensionId );
-			//console.log("The body passed to loadalertdta is :", JSON.stringify(msg.body));
+		if(FILTER_DIRECTION === msg.body.activeCalls[0].direction && FILTER_TO === msg.body.activeCalls[0].to) {
 			loadAlertDataAndSend(msg.body.extensionId);
 		}
 	//}
@@ -245,7 +241,6 @@ function handleSubscribeError(data) {
  * Platform Event Handlers
 **/
 function handleLoginSuccess(data) {
-	//console.log('LOGIN SUCCESS DATA: ', data);
 	init(data);
 }
 
