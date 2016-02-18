@@ -16,6 +16,9 @@ var ALERT_SMS = [
 var RC = require('ringcentral');
 var helpers = require('ringcentral-helpers');
 var http = require('http');
+var SubscriptionManager = require('./lib/SubscriptionManager');
+var EventMonitor = require('./lib/EventMonitor');
+var AlertDispatcher = require('./lib/AlertDispatcher');
 
 // VARS
 var _cachedList = {};
