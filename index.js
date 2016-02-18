@@ -76,6 +76,7 @@ function sendAlerts(data) {
 	// TODO: SEND THE ALERTS ON THE PROPER CHANNELS, USE THE CONSTANT ABOVE FOR THE TARGET SMS NUMBERS OF PRIORITY RESPONSE TEAM
 	// TODO: Need to ETL victim data for outbound messaging
 	// TODO: Refactor to handle multiple channels for notification (such as webhooks, etc...)
+	console.log("Send Alerts Method called");
 	var LENGTH = ALERT_SMS.length;
 	if(0 < LENGTH) {
 		for(var i = 0; i < LENGTH; i++) {
@@ -96,14 +97,16 @@ function generatePresenceEventFilter(item) {
 	}
 }
 
-function loadAlertDataAndSend(eventData) {
+function loadAlertDataAndSend(extensionId) {
 	// TODO: Lookup Extension to capture user emergency information
+	var url = '/account/~/extension/' + extensionId ;
 	platform
-		.get(Extension.createUrl(eventData.extension.id))
+		.get(url)
 		.then(function(response){
 			// Extrapolate emergency information
-			console.log("******* LoadAlerrtExtensionDataRespsone is :",JSON.stringify(response));
-			return JSON.parse(response);
+			console.log("******* LoadAlerrtExtensionDataRespsone is :", response._text);
+			//return JSON.parse(response._text);
+
 		})
 		.then(sendAlerts)
 		.catch(function(e) {
@@ -130,12 +133,15 @@ function startSubscription(options) {
 
 function sendSms(data) {
 	// For SMS, subject has 160 char max
+	console.log("Inside sendSMS");
+	var url = Message.createUrl(option);
+	console.log("The Url is :" + url);
 	platform
 		.send({
-			url: Message.createUrl({sms}),
+			url: Message.createUrl({options: sms},'131074004'),
 			body: {
-				to: '18315941779',
-				from: '1585623138',
+				to: ['18315941779'],
+				from: '15856234212',
 				subject: 'test'
 			}
 		})
@@ -144,6 +150,7 @@ function sendSms(data) {
 			if(response.error) {
 				console.error(response.error);
 			} else {
+				console.log("Message sent");
 				return true;
 			}
 		})
@@ -201,9 +208,9 @@ function handleSubscriptionNotification(msg) {
 	// To modify operation for development, just change these values in the constants
 	//if(msg.body.activeCalls[0].direction && msg.body.activeCalls[0].to) {
 		if(msg.body.activeCalls[0].direction === FILTER_DIRECTION && msg.body.activeCalls[0].to === FILTER_TO) {
-			//console.log("*********** ALERT COPS ***************");
-			console.log("The body passed to loadalertdta is :", JSON.stringify(msg.body));
-			loadAlertDataAndSend(msg.body);
+			console.log("*********** ALERT COPS ***************",msg.body.extensionId );
+			//console.log("The body passed to loadalertdta is :", JSON.stringify(msg.body));
+			loadAlertDataAndSend(msg.body.extensionId);
 		}
 	//}
 }
