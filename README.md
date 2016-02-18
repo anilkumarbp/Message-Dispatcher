@@ -80,7 +80,7 @@ npm start
 ## Dependencies
 
 Current used RCSDK version for this demo is :
-[RCSDK-1.3.2](https://github.com/ringcentral/ringcentral-js/tree/1.3.2)
+[RCSDK-2.0.4](https://github.com/ringcentral/ringcentral-js/tree/2.0.4)
 * Make sure to change the SDK version in the package.json before you chose to use a different SDK Version.
 
 
