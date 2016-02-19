@@ -3,16 +3,13 @@
 // Handle local development and testing
 require('dotenv').config();
 
-// CONSTANTS
-var PORT = 3000;
-var FILTER_DIRECTION = 'Outbound';
-var FILTER_TO = '511'; // Using 511 as it is the right thing to filter upon for now
-var FILTER_DEVICE_TYPE = 'HardPhone';
-var DEVICES_PER_PAGE = 500;
-// TODO: ADD YOUR NUMBERS TO RECEIVE THE ALERTS
-var ALERT_SMS = [
-    '15856234190' //FIXME MAJOR take this from env
-];
+// CONSTANTS - obtained from environment variables
+var PORT                = process.env.PORT;
+var FILTER_DIRECTION    = process.env.FILTER_DIRECTION;
+var FILTER_TO           = process.env.FILTER_TO; // ONLY USE 911 in PRODUCTION!!!
+var FILTER_DEVICE_TYPE  = process.env.FILTER_DEVICE_TYPE;
+var DEVICES_PER_PAGE    = process.env.DEVICES_PER_PAGE;
+var ALERT_SMS           = process.env.ALERT_SMS
 
 // Dependencies
 var RC = require('ringcentral');
@@ -23,7 +20,7 @@ var http = require('http');
  var SubscriptionManager = require('./lib/SubscriptionManager');
  var EventMonitor = require('./lib/EventMonitor');
  var AlertDispatcher = require('./lib/AlertDispatcher');
- */
+*/
 
 // VARS
 var _cachedList = {};
@@ -32,16 +29,16 @@ var Extension = helpers.extension();
 var Message = helpers.message();
 var server = http.createServer();
 
-// Initialize the SDK
-var SDK = new RC({ //FIXME lowercase -- it's an instance, not constructor
+// Initialize the sdk
+var sdk= new RC({
     server: process.env.RC_API_BASE_URL,
     appKey: process.env.RC_APP_KEY,
     appSecret: process.env.RC_APP_SECRET
 });
 
 // Bootstrap Platform and Subscription
-var platform = SDK.platform();
-var subscription = SDK.createSubscription();
+var platform = sdk.platform();
+var subscription = sdk.createSubscription();
 
 // Login to the RingCentral Platform
 platform.login({
@@ -54,7 +51,7 @@ platform.login({
 server.listen(PORT);
 
 // GO!
-function init(response) {
+function init(loginData) {
 
     var devices = [];
     var page = 1;
@@ -66,7 +63,7 @@ function init(response) {
         return platform
             .get('/account/~/device', {
                 page: page,
-                perPage: 1 //DEVICES_PER_PAGE
+                perPage: process.env.DEVICES_PER_PAGE //REDUCE NUMBER TO SPEED BOOTSTRAPPING
             })
             .then(function(response) {
                 var data = response.json();
@@ -97,19 +94,19 @@ function init(response) {
 /**
  * Application Functions
  **/
+//TODO: MAJOR Refactor to handle multiple channels for notification (such as webhooks, etc...)
 function sendAlerts(response) {
-    var data = response.json();
-    //FIXME MAJOR Refactor to handle multiple channels for notification (such as webhooks, etc...)
-    data = ALERT_SMS;
-
-    return Promise.all(data.records.map(function(ext) {
+    // This is the extension data which needs to be transformed for SMS message
+    var ext = response.json();
+    // Send alerts to each of the SMS in the array as defined in environment variable `ALERT_SMS`
+    return Promise.all(process.env.ALERT_SMS.map(function(ext) {
         return sendSms(ext);
     }));
 
 }
 
 function getPhysicalDevices(device) {
-    return (FILTER_DEVICE_TYPE === device.type);
+    return (-1 !== FILTER_DEVICE_TYPE.indexOf(device.type));
 }
 
 function generatePresenceEventFilter(item) {
@@ -145,15 +142,21 @@ function startSubscription(devices) { //FIXME MAJOR Use devices list somehow
 
 function sendSms(data) {
     // For SMS, subject has 160 char max
+    var alertMessage = '!!EMERGENCY ALERT: ';
+    alertMessage += '\n' + extensionData.contacts.firstName + ' ' + extensionData.contacts.lastName;
+    alertMessage += '\n Dialed: ' + FILTER_TO;
+    alertMessage += '\n From Phone: ' + extension.phoneNumber;
+    alertMessage += '\n LOCATION: '; // TODO: Need to find out which value of this should hold emergency info and fix 
+
     return platform
         .post(Message.createUrl({sms: true}), {
             from: {
-                phoneNumber: '15856234212'
+                phoneNumber: process.env.SOURCE_PHONE_NUMBER
             },
             to: [{
-                phoneNumber: data //FIXME MAJOR change to actual data property
+                phoneNumber: data.number
             }],
-            text: 'SOMEONE CALLED' + FILTER_TO
+            text: alertMessage
         })
         .then(function(response) {
             console.log("Alert sent");
@@ -243,7 +246,8 @@ function handleSubscribeError(data) {
  * Platform Event Handlers
  **/
 function handleLoginSuccess(data) {
-    console.log('LOGIN SUCCESS DATA: ', data);
+    // UNCOMMENT TO VIEW LOGIN DATA
+    //console.log('LOGIN SUCCESS DATA: ', data);  
 }
 
 function handleLoginError(data) {
