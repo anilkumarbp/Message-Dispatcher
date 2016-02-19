@@ -7,8 +7,8 @@ require('dotenv').config();
 var PORT = 3000;
 var FILTER_DIRECTION = 'Outbound';
 var FILTER_TO = '511'; // Using 511 as it is the right thing to filter upon for now
-var FILTER_DEVICE_TYPE = 'SoftPhone';
-var DEVICES_PER_PAGE = 1500;
+var FILTER_DEVICE_TYPE = 'HardPhone';
+var DEVICES_PER_PAGE = 500;
 // TODO: ADD YOUR NUMBERS TO RECEIVE THE ALERTS
 var ALERT_SMS = [
 	'15856234190'
@@ -154,7 +154,7 @@ function sendSms(data) {
 			if(response.error) {
 				console.error(response.error);
 			} else {
-				console.log("Message sent");
+				console.log("Alert sent");
 				return true;
 			}
 		})
