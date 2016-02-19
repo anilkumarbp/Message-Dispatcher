@@ -69,6 +69,13 @@ You will need to create a `.env` file in the root directory of this application.
     * **RC_APP_SECRET=** Your application's `app_secret`
     * **RC_ENVIRONMENT=** Either `sandbox` -OR- `production`
     * **RC_API_BASE_URL=** Only change when your application receives prodction access
+    * **ALERT_SMS**= Array of phone numbers for people you want to wake up with alerts
+    * **SOURCE_PHONE_NUMBER**= Source phone number of the alert
+    * **PORT**= The port the HTTP server will listen upon;
+    * **FILTER_DIRECTION**= Either Outbound || Inbound the direction of phone calls;
+    * **FILTER_TO**= 411 || 511 || 911 (ONLY USE 911 in Production)
+    * **FILTER_DEVICE_TYPE**= Array of phone type elements as strings, one of: HardPhone, SoftPhone, OtherPhone;
+    * **DEVICES_PER_PAGE**= Number for page aggregation, uses 500 by default;
 
 ## Operation
 
@@ -77,10 +84,15 @@ To start this application locally:
 npm start
 ```
 
+To run the unit tests:
+```
+npm test
+```
+
 ## Dependencies
 
 Current used RCSDK version for this demo is :
-[RCSDK-1.3.2](https://github.com/ringcentral/ringcentral-js/tree/1.3.2)
+[RCSDK-2.0.4](https://github.com/ringcentral/ringcentral-js/tree/2.0.4)
 * Make sure to change the SDK version in the package.json before you chose to use a different SDK Version.
 
 

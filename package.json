@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "test": "test"
+    "test": "./node_modules/mocha/bin/mocha test/**/*-test.js --reporter spec"
   },
   "author": "anil.kumar@ringcentral.com",
   "license": "MIT",
@@ -14,5 +14,10 @@
     "dotenv": "^2.0.0",
     "ringcentral": "^2.0.4",
     "ringcentral-helpers": "^0.1.0"
+  },
+  "devDependencies": {
+    "chai": "^3.5.0",
+    "mocha": "^2.4.5",
+    "sinon": "^1.17.3"
   }
 }
