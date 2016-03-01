@@ -67,6 +67,7 @@ function init(loginData) {
             })
             .then(function(response) {
                 var data = response.json();
+
                 devices = devices.concat(data.records);
                 if (data.navigation.nextPage) {
                     page++;
@@ -80,12 +81,10 @@ function init(loginData) {
 
     return getDevicesPage()
         .then(function(devices) {
-            console.log('Now you have all devices', devices.length);
             return devices.filter(getPhysicalDevices).map(organize);
         })
         .then(startSubscription)
         .catch(function(e) {
-            console.error(e);
             throw e;
         });
 
@@ -106,7 +105,8 @@ function sendAlerts(response) {
 }
 
 function getPhysicalDevices(device) {
-    return (-1 !== FILTER_DEVICE_TYPE.indexOf(device.type));
+    if(FILTER_DEVICE_TYPE.indexOf(device.type) && device.extension) return 1;
+
 }
 
 function generatePresenceEventFilter(item) {
@@ -128,24 +128,27 @@ function loadAlertDataAndSend(extensionId) {
         });
 }
 
-function organize(ext, i, arr) {
-    //console.log("Adding the presence event for :", generatePresenceEventFilter(ext));
-    _extensionFilterArray.push(generatePresenceEventFilter(ext))
+function organize(ext) {
+
+    _extensionFilterArray.push(generatePresenceEventFilter(ext));
     _cachedList[ext.extension.id] = ext;
 }
 
 function startSubscription(devices) { //FIXME MAJOR Use devices list somehow
+
+    console.log("Starting to create subscription");
     return subscription
         .setEventFilters(_extensionFilterArray)
         .register();
 }
 
 function sendSms(data) {
+
     // For SMS, subject has 160 char max
     var alertMessage = '!!EMERGENCY ALERT: ';
-    alertMessage += '\n' + extensionData.contacts.firstName + ' ' + extensionData.contacts.lastName;
+    alertMessage += '\n' + data.contact.firstName + ' ' + data.contact.lastName;
     alertMessage += '\n Dialed: ' + FILTER_TO;
-    alertMessage += '\n From Phone: ' + extension.phoneNumber;
+    alertMessage += '\n From Extension: ' + data.extensionNumber;
     alertMessage += '\n LOCATION: '; // TODO: Need to find out which value of this should hold emergency info and fix 
 
     return platform
@@ -154,12 +157,11 @@ function sendSms(data) {
                 phoneNumber: process.env.SOURCE_PHONE_NUMBER
             },
             to: [{
-                phoneNumber: data.number
+                phoneNumber: process.env.ALERT_SMS
             }],
             text: alertMessage
         })
         .then(function(response) {
-            console.log("Alert sent");
             return response;
         })
         .catch(function(e) {
@@ -213,6 +215,7 @@ function handleSubscriptionNotification(msg) {
     console.log('SUBSCRIPTION NOTIFICATION: ', JSON.stringify(msg));
     //if(msg.body.activeCalls[0].direction && msg.body.activeCalls[0].to) {
     if (FILTER_DIRECTION === msg.body.activeCalls[0].direction && FILTER_TO === msg.body.activeCalls[0].to) {
+        console.log("Calling to 511 has been initiated");
         loadAlertDataAndSend(msg.body.extensionId);
     }
     //}
