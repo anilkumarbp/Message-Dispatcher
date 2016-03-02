@@ -8,7 +8,7 @@ Message-Dispatcher allows RingCentral Developers to subscribe to all extensions 
 * Have a RingCentral Admin Account
 * Be registered as a [RingCentral Developer](https://developers.ringcentral.com/)
 * [Created your sandbox(aka: test or development) account](https://developer.ringcentral.com/library/tutorials/test-account.html) within the RingCentral Developer Portal
-* All the Devices should have an **Emergency Address** assigned to their device / extension ( ** Mandatory ** )
+* All the Devices should have an **Emergency Address** assigned to their device / extension ( **Mandatory** )
 * Are able to [create a new application](https://developer.ringcentral.com/my-account.html#/applications) using the RingCentral Developer Portal
 
 ## Installation
