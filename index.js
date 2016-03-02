@@ -4,17 +4,22 @@
 require('dotenv').config();
 
 // CONSTANTS - obtained from environment variables
-var PORT                = process.env.PORT;
-var FILTER_DIRECTION    = process.env.FILTER_DIRECTION;
-var FILTER_TO           = process.env.FILTER_TO; // ONLY USE 911 in PRODUCTION!!!
-var FILTER_DEVICE_TYPE  = process.env.FILTER_DEVICE_TYPE;
+var PORT                    = process.env.PORT;
+var FILTER_DIRECTION        = process.env.FILTER_DIRECTION;
+var FILTER_TO               = process.env.FILTER_TO; // ONLY USE 911 in PRODUCTION!!!
+var FILTER_DEVICE_TYPE      = process.env.FILTER_DEVICE_TYPE;
+var FILTER_TELPHONY_STATUS  = process.env.FILTER_TELEPHONY_STATUS;
 var DEVICES_PER_PAGE    = process.env.DEVICES_PER_PAGE;
-var ALERT_SMS           = process.env.ALERT_SMS
+var ALERT_SMS           = ['18315941779', '16197619503'];
+
 
 // Dependencies
 var RC = require('ringcentral');
 var helpers = require('ringcentral-helpers');
 var http = require('http');
+
+var _tmpAlertMessage = '';
+
 /*
  Code is stubbed to break this into modules, but not implemented completely yet
  var SubscriptionManager = require('./lib/SubscriptionManager');
@@ -24,6 +29,7 @@ var http = require('http');
 
 // VARS
 var _cachedList = {};
+var AlertMessage = '';
 var _extensionFilterArray = [];
 var Extension = helpers.extension();
 var Message = helpers.message();
@@ -85,23 +91,39 @@ function init(loginData) {
         })
         .then(startSubscription)
         .catch(function(e) {
+            console.error("The error is in getDevicesPage : " + e);
             throw e;
         });
 
 }
 
-/**
- * Application Functions
- **/
-//TODO: MAJOR Refactor to handle multiple channels for notification (such as webhooks, etc...)
-function sendAlerts(response) {
-    // This is the extension data which needs to be transformed for SMS message
-    var ext = response.json();
-    // Send alerts to each of the SMS in the array as defined in environment variable `ALERT_SMS`
-    return Promise.all(process.env.ALERT_SMS.map(function(ext) {
-        return sendSms(ext);
-    }));
 
+/*
+    Format the alert
+ */
+function formatALert(extension) {
+
+    try {
+
+        var ext = extension.json();
+        console.log(" the ext is : " + JSON.stringify(ext));
+        // For SMS, subject has 160 char max
+        var alertMessage = '!!EMERGENCY ALERT: Outbound call to 911 ';
+        alertMessage += '\n First Name: ' + ext.contact.firstName;        // First Name of the caller
+        alertMessage += '\n Last Name: '  + ext.contact.lastName;         // Last Name of the caller
+        alertMessage += '\n Email: '  + ext.contact.email;                // Email id of the caller
+        alertMessage += '\n From Extension: ' + ext.extensionNumber;      // Extension Number of the caller
+        //alertMessage += '\n From Phone Number: ' + _cachedList[ext.extensionNumber].phoneLines[0].phoneInfo.phoneNumber;
+        alertMessage += '\n LOCATION: ' + ext.contact.businessAddress; // TODO: Need to find out which value of this should hold emergency info and fix
+
+        _tmpAlertMessage = alertMessage;
+
+        return alertMessage;
+
+    } catch(e) {
+        console.error("The error is in formatAlert : " + e);
+        throw e;
+    }
 }
 
 function getPhysicalDevices(device) {
@@ -110,7 +132,7 @@ function getPhysicalDevices(device) {
 }
 
 function generatePresenceEventFilter(item) {
-    if (!item) {
+    if (!item) {;
         throw new Error('Message-Dispatcher Error: generatePresenceEventFilter requires a parameter');
     } else {
         return '/account/~/extension/' + item.extension.id + '/presence?detailedTelephonyState=true';
@@ -121,17 +143,30 @@ function loadAlertDataAndSend(extensionId) {
     // TODO: Lookup Extension to capture user emergency information
     return platform
         .get('/account/~/extension/' + extensionId)
-        .then(sendAlerts)
+        .then(formatALert)                              // format the alert message
+        .then(sendAlerts)                               // send SMS Alert
         .catch(function(e) {
-            console.error(e);
+            console.error("The error is in loadAlertDataAndSend : " + e);
             throw e;
         });
 }
 
-function organize(ext) {
 
-    _extensionFilterArray.push(generatePresenceEventFilter(ext));
-    _cachedList[ext.extension.id] = ext;
+function organize(device) {
+    //console.log("Adding the presence event for :", generatePresenceEventFilter(device));
+    _extensionFilterArray.push(generatePresenceEventFilter(device));
+    _cachedList[device.extension.id] = device;
+    console.log("The cachedList array  is :" + _cachedList.valueOf());
+    return platform
+        .get('/account/~/device/' + device.id)
+        .then(function(response){
+            _cachedList[device.extension.id].deviceDetails = response.emergencyServiceAddress;
+            console.log("The cachedlist array now is : " + _cachedList.valueOf());
+        })
+        .catch((function(e){
+            console.error("The error is in organize : " + e);
+            throw(e);
+        }));
 }
 
 function startSubscription(devices) { //FIXME MAJOR Use devices list somehow
@@ -142,30 +177,49 @@ function startSubscription(devices) { //FIXME MAJOR Use devices list somehow
         .register();
 }
 
-function sendSms(data) {
 
-    // For SMS, subject has 160 char max
-    var alertMessage = '!!EMERGENCY ALERT: ';
-    alertMessage += '\n' + data.contact.firstName + ' ' + data.contact.lastName;
-    alertMessage += '\n Dialed: ' + FILTER_TO;
-    alertMessage += '\n From Extension: ' + data.extensionNumber;
-    alertMessage += '\n LOCATION: '; // TODO: Need to find out which value of this should hold emergency info and fix 
+/**
+ * Application Functions
+ **/
+//TODO: MAJOR Refactor to handle multiple channels for notification (such as webhooks, etc...)
+function sendAlerts(response) {
+    // This is the extension data which needs to be transformed for SMS message
+    console.log("within the sendAlerts :" + response);
+
+    AlertMessage = response;
+    //var ext = response.json();
+    //console.log("The response in sandAlerts function is : " + JSON.stringify(ext));
+    // Send alerts to each of the SMS in the array as defined in environment variable `ALERT_SMS`
+    console.log("Alert SMS type" + typeof ALERT_SMS);
+    return Promise.all(ALERT_SMS.map(function(ext) {
+        console.log("Error within the promise array");
+        return sendSms(ext);
+    }));
+
+}
+
+function sendSms(number) {
+
+    //// For SMS, subject has 160 char max
+    //var alertMessage = '!!EMERGENCY ALERT: ';
+    //alertMessage += '\n' + data.contact.firstName + ' ' + data.contact.lastName;
+    //alertMessage += '\n Dialed: ' + FILTER_TO;
+    //alertMessage += '\n From Extension: ' + data.extensionNumber;
+    //alertMessage += '\n LOCATION: '; // TODO: Need to find out which value of this should hold emergency info and fix
 
     return platform
         .post(Message.createUrl({sms: true}), {
             from: {
                 phoneNumber: process.env.SOURCE_PHONE_NUMBER
             },
-            to: [{
-                phoneNumber: process.env.ALERT_SMS
-            }],
-            text: alertMessage
+            to: [{phoneNumber: number}],
+            text: AlertMessage
         })
         .then(function(response) {
             return response;
         })
         .catch(function(e) {
-            console.error(e.message);
+            console.error("The error is in sendSMS : " + e.message);
             throw (e);
         });
 }
@@ -212,9 +266,9 @@ function inboundRequest(req, res) {
  * Subscription Event Handlers
  **/
 function handleSubscriptionNotification(msg) {
-    console.log('SUBSCRIPTION NOTIFICATION: ', JSON.stringify(msg));
+    console.log('***************SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
     //if(msg.body.activeCalls[0].direction && msg.body.activeCalls[0].to) {
-    if (FILTER_DIRECTION === msg.body.activeCalls[0].direction && FILTER_TO === msg.body.activeCalls[0].to) {
+    if (FILTER_DIRECTION === msg.body.activeCalls[0].direction && FILTER_TO === msg.body.activeCalls[0].to && FILTER_TELPHONY_STATUS === msg.body.telephonyStatus) {
         console.log("Calling to 511 has been initiated");
         loadAlertDataAndSend(msg.body.extensionId);
     }
