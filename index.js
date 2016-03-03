@@ -4,43 +4,39 @@
 require('dotenv').config();
 
 // CONSTANTS - obtained from environment variables
-var PORT                    = process.env.PORT;
-var FILTER_DIRECTION        = process.env.FILTER_DIRECTION;
-var FILTER_TO               = process.env.FILTER_TO; // ONLY USE 911 in PRODUCTION!!!
-var FILTER_DEVICE_TYPE      = process.env.FILTER_DEVICE_TYPE;
-var FILTER_TELPHONY_STATUS  = process.env.FILTER_TELEPHONY_STATUS;
-var DEVICES_PER_PAGE        = process.env.DEVICES_PER_PAGE;
-var ALERT_SMS               = process.env.ALERT_SMS;
-//var ALERT_SMS             = ['18315941779', '16197619503', '13176009731'];
+    var PORT                    = process.env.PORT;
+    var FILTER_DIRECTION        = process.env.FILTER_DIRECTION;
+    var FILTER_TO               = process.env.FILTER_TO;                                                 // ONLY USE 911 in PRODUCTION!!!
+    var FILTER_DEVICE_TYPE      = process.env.FILTER_DEVICE_TYPE;
+    var FILTER_TELPHONY_STATUS  = process.env.FILTER_TELEPHONY_STATUS;
+    var ALERT_SMS               = process.env.ALERT_SMS;
 
 
+    // Dependencies
+    var RC = require('ringcentral');
+    var helpers = require('ringcentral-helpers');
+    var http = require('http');
 
-// Dependencies
-var RC = require('ringcentral');
-var helpers = require('ringcentral-helpers');
-var http = require('http');
-
-var _tmpAlertMessage = '';
+    var _tmpAlertMessage = '';
 
 
-// VARS
-var _cachedList = {};
-var AlertMessage = '';
-var _extensionFilterArray = [];
-var Extension = helpers.extension();
-var Message = helpers.message();
-var server = http.createServer();
+    // VARS
+    var _cachedList = {};
+    var _extensionFilterArray = [];
+    var Extension = helpers.extension();
+    var Message = helpers.message();
+    var server = http.createServer();
 
-// Initialize the sdk
-var sdk= new RC({
-    server: process.env.RC_API_BASE_URL,
-    appKey: process.env.RC_APP_KEY,
-    appSecret: process.env.RC_APP_SECRET
-});
+    // Initialize the sdk
+    var sdk= new RC({
+        server: process.env.RC_API_BASE_URL,
+        appKey: process.env.RC_APP_KEY,
+        appSecret: process.env.RC_APP_SECRET
+    });
 
-// Bootstrap Platform and Subscription
-var platform = sdk.platform();
-var subscription = sdk.createSubscription();
+    // Bootstrap Platform and Subscription
+    var platform = sdk.platform();
+    var subscription = sdk.createSubscription();
 
     login();
     // Login to the RingCentral Platform
@@ -74,7 +70,7 @@ var subscription = sdk.createSubscription();
             return platform
                 .get('/account/~/device', {
                     page: page,
-                    perPage: process.env.DEVICES_PER_PAGE   //REDUCE NUMBER TO SPEED BOOTSTRAPPING
+                    perPage: process.env.DEVICES_PER_PAGE                                             //REDUCE NUMBER TO SPEED BOOTSTRAPPING
                 })
                 .then(function(response) {
                     var data = response.json();
@@ -85,9 +81,9 @@ var subscription = sdk.createSubscription();
                     devices = devices.concat(data.records);
                     if (data.navigation.nextPage) {
                         page++;
-                        return getDevicesPage();            // this will be chained
+                        return getDevicesPage();                                                     // this will be chained
                     } else {
-                        return devices;                     // this is the finally resolved thing
+                        return devices;                                                              // this is the finally resolved thing
                     }
                 });
 
@@ -152,8 +148,8 @@ var subscription = sdk.createSubscription();
         // TODO: Lookup Extension to capture user emergency information
         return platform
             .get('/account/~/extension/' + extensionId)
-            .then(formatALert)                              // format the alert message
-            .then(sendAlerts)                               // send SMS Alert
+            .then(formatALert)                                                                      // format the alert message
+            .then(sendAlerts)                                                                       // send SMS Alert
             .catch(function(e) {
                 console.error("The error is in loadAlertDataAndSend : " + e);
                 throw e;
@@ -164,14 +160,10 @@ var subscription = sdk.createSubscription();
     function organize(device) {
         _extensionFilterArray.push(generatePresenceEventFilter(device));
         //_cachedList[device.extension.id] = device;
-        //console.log("The type of cached list is :" + typeof _cachedList);
         return platform
             .get('/account/~/device/' + device.id)
             .then(function(response){
-                //console.log("The device id lookup is : " + JSON.stringify(response.json(), null, 2));
-
                 _cachedList[device.extension.id] = response.json().emergencyServiceAddress;
-                //console.log("The cachedlist array now is : " + JSON.stringify(_cachedList, null, 2));
             })
             .catch((function(e){
                 console.error("The error is in organize : " + e);
@@ -195,12 +187,11 @@ var subscription = sdk.createSubscription();
     function sendAlerts(response) {
 
         // Send alerts to each of the SMS in the array as defined in environment variable `ALERT_SMS`
-        console.log("Alert SMS type" + typeof ALERT_SMS);
-        console.log("Alert SMS array is :" + ALERT_SMS);
+        console.log("ALERT SMS SENT TO NUMBERS :" + ALERT_SMS);
         return Promise.all(Array(ALERT_SMS).map(function(ext) {
             return sendSms(ext);
         })).catch(function(e){
-            console.log("Error within the promise array", e);
+            console.log("The error is with the promises", e);
             throw e;
         });
 
@@ -264,16 +255,14 @@ var subscription = sdk.createSubscription();
     }
 
     /**
-     * Subscription Event Handlers
+     * Subscription Event Handlers   - to capture events on telephonyStatus ~ callConnected
      **/
     function handleSubscriptionNotification(msg) {
         console.log('***************SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
-        //if(msg.body.activeCalls[0].direction && msg.body.activeCalls[0].to) {
         if (FILTER_DIRECTION === msg.body.activeCalls[0].direction && FILTER_TO === msg.body.activeCalls[0].to && FILTER_TELPHONY_STATUS === msg.body.telephonyStatus) {
             console.log("Calling to 511 has been initiated");
             loadAlertDataAndSend(msg.body.extensionId);
         }
-        //}
     }
 
     function handleRemoveSubscriptionSuccess(data) {
