@@ -75,9 +75,6 @@ require('dotenv').config();
                 .then(function(response) {
                     var data = response.json();
 
-                    console.log("Retreiving all Devices on the account");
-
-
                     devices = devices.concat(data.records);
                     if (data.navigation.nextPage) {
                         page++;
@@ -113,17 +110,24 @@ require('dotenv').config();
         try {
 
             var ext = extension.json();
+
             // For SMS, subject has 160 char max
-            var alertMessage = '!!EMERGENCY ALERT: Outbound call to 911 ';
-            alertMessage += '\n First Name: ' + ext.contact.firstName;                              // First Name of the caller
-            alertMessage += '\n Last Name: '  + ext.contact.lastName;                               // Last Name of the caller
-            alertMessage += '\n Email: '  + ext.contact.email;                                      // Email id of the caller
-            alertMessage += '\n From Extension: ' + ext.extensionNumber;                            // Extension Number of the caller
-            alertMessage += '\n LOCATION: ' + JSON.stringify(_cachedList[ext.id]);                  // Retreive the Emergency Address from _cachedList
+            var messageAlert = '!!EMERGENCY ALERT: Outbound call to 911 ';
+            messageAlert += '\n First Name: ' + ext.contact.firstName;                              // First Name of the caller
+            messageAlert += '\n Last Name: '  + ext.contact.lastName;                               // Last Name of the caller
+            messageAlert += '\n Email: '  + ext.contact.email;                                      // Email id of the caller
+            messageAlert += '\n From Extension: ' + ext.extensionNumber;                            // Extension Number of the caller
+            messageAlert += '\n LOCATION: ' + JSON.stringify(_cachedList[ext.id]);                                                        // Retreive the Emergency Address from _cachedList
+            messageAlert += '\n\t\t Street: '  + _cachedList[ext.id].getString("street");
+            messageAlert += '\n\t\t City: '    + _cachedList[ext.id].getString("city");
+            messageAlert += '\n\t\t State: '   + _cachedList[ext.id].getString("state");
+            messageAlert += '\n\t\t Country: ' + _cachedList[ext.id].getString("country");
+            messageAlert += '\n\t\t Zip: '     + _cachedList[ext.id].getString("zip");
 
-            _tmpAlertMessage = alertMessage;
 
-            return alertMessage;
+            _tmpAlertMessage = messageAlert;
+
+            return messageAlert;
 
         } catch(e) {
             console.error("The error is in formatAlert : " + e);
