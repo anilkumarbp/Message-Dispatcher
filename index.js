@@ -167,7 +167,11 @@ require('dotenv').config();
         return platform
             .get('/account/~/device/' + device.id)
             .then(function(response){
+                console.log("******************* The softphone device id is :"+ device.id);
+                console.log("******************* The response is :"+ JSON.stringify(response.json(), null, 2));
+
                 _cachedList[device.extension.id] = response.json().emergencyServiceAddress;
+                console.log(_cachedList[device.extension.id]);
             })
             .catch((function(e){
                 console.error("The error is in organize : " + e);
