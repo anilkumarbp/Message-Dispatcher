@@ -6,10 +6,10 @@ require('dotenv').config();
 // CONSTANTS - obtained from environment variables
     var PORT                    = process.env.PORT;
     var FILTER_DIRECTION        = process.env.FILTER_DIRECTION;
-    var FILTER_TO               = process.env.FILTER_TO;                                                 // ONLY USE 911 in PRODUCTION!!!
+    var FILTER_TO               = process.env.FILTER_TO;                                           // ONLY USE 911 in PRODUCTION!!!
     var FILTER_DEVICE_TYPE      = process.env.FILTER_DEVICE_TYPE;
     var FILTER_TELPHONY_STATUS  = process.env.FILTER_TELEPHONY_STATUS;
-    var ALERT_SMS               = process.env.ALERT_SMS;
+    var ALERT_SMS               = JSON.parse(process.env.ALERT_SMS);
 
 
     // Dependencies
@@ -21,7 +21,7 @@ require('dotenv').config();
 
 
     // VARS
-    var _cachedList = {};
+    var _cachedList = [];
     var _extensionFilterArray = [];
     var Extension = helpers.extension();
     var Message = helpers.message();
@@ -112,17 +112,19 @@ require('dotenv').config();
             var ext = extension.json();
 
             // For SMS, subject has 160 char max
-            var messageAlert = '!!EMERGENCY ALERT: Outbound call to 911 ';
-            messageAlert += '\n First Name: ' + ext.contact.firstName;                              // First Name of the caller
-            messageAlert += '\n Last Name: '  + ext.contact.lastName;                               // Last Name of the caller
-            messageAlert += '\n Email: '  + ext.contact.email;                                      // Email id of the caller
-            messageAlert += '\n From Extension: ' + ext.extensionNumber;                            // Extension Number of the caller
-            messageAlert += '\n LOCATION: ' + JSON.stringify(_cachedList[ext.id]);                                                        // Retreive the Emergency Address from _cachedList
-            messageAlert += '\n\t\t Street: '  + _cachedList[ext.id].getString("street");
-            messageAlert += '\n\t\t City: '    + _cachedList[ext.id].getString("city");
-            messageAlert += '\n\t\t State: '   + _cachedList[ext.id].getString("state");
-            messageAlert += '\n\t\t Country: ' + _cachedList[ext.id].getString("country");
-            messageAlert += '\n\t\t Zip: '     + _cachedList[ext.id].getString("zip");
+            var messageAlert = '!! EMERGENCY ALERT: Outbound call to 911 !!';
+            messageAlert += '\n First Name: ' + ext.contact.firstName;                                  // First Name of the caller
+            messageAlert += '\n Last Name: '  + ext.contact.lastName;                                   // Last Name of the caller
+            messageAlert += '\n Email: '  + ext.contact.email;                                          // Email id of the caller
+            messageAlert += '\n From Extension: ' + ext.extensionNumber;                                // Extension Number of the caller
+            messageAlert += '\n From Number: ' + _cachedList[ext.id].phoneNumber;                       // Extension Number of the caller
+            messageAlert += '\n LOCATION: ';                                                            // Retreive the Emergency Address from _cachedList
+            messageAlert += '\n\t\t Street 1: '  + _cachedList[ext.id].emergencyServiceAddress.street;
+            messageAlert += '\n\t\t Street 2: '  + _cachedList[ext.id].emergencyServiceAddress.street2;
+            messageAlert += '\n\t\t City: '    + _cachedList[ext.id].emergencyServiceAddress.city;
+            messageAlert += '\n\t\t State: '   + _cachedList[ext.id].emergencyServiceAddress.state;
+            messageAlert += '\n\t\t Country: ' + _cachedList[ext.id].emergencyServiceAddress.country;
+            messageAlert += '\n\t\t Zip: '     + _cachedList[ext.id].emergencyServiceAddress.zip;
 
 
             _tmpAlertMessage = messageAlert;
@@ -167,11 +169,11 @@ require('dotenv').config();
         return platform
             .get('/account/~/device/' + device.id)
             .then(function(response){
-                console.log("******************* The softphone device id is :"+ device.id);
-                console.log("******************* The response is :"+ JSON.stringify(response.json(), null, 2));
+                //var item = {};
+                _cachedList[device.extension.id] ={ };
+                _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
+                _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
 
-                _cachedList[device.extension.id] = response.json().emergencyServiceAddress;
-                console.log(_cachedList[device.extension.id]);
             })
             .catch((function(e){
                 console.error("The error is in organize : " + e);
@@ -195,8 +197,8 @@ require('dotenv').config();
     function sendAlerts(response) {
 
         // Send alerts to each of the SMS in the array as defined in environment variable `ALERT_SMS`
-        console.log("ALERT SMS SENT TO NUMBERS :" + ALERT_SMS);
-        return Promise.all(Array(ALERT_SMS).map(function(ext) {
+        console.log("ALERT SMS SENT TO NUMBERS :", ALERT_SMS);
+        return Promise.all(ALERT_SMS.map(function(ext) {
             return sendSms(ext);
         })).catch(function(e){
             console.log("The error is with the promises", e);
