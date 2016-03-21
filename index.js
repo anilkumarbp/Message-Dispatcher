@@ -27,18 +27,46 @@ require('dotenv').config();
     var Message = helpers.message();
     var server = http.createServer();
 
-    // Initialize the sdk
+    // Initialize the sdk for RC
     var sdk= new RC({
         server: process.env.RC_API_BASE_URL,
         appKey: process.env.RC_APP_KEY,
         appSecret: process.env.RC_APP_SECRET
     });
 
+    // Initialize the sdk for SA
+    var sdk_SA= new RC({
+        server: process.env.SA_API_BASE_URL,
+        appKey: process.env.SA_APP_KEY,
+        appSecret: process.env.SA_APP_SECRET
+    });
+
     // Bootstrap Platform and Subscription
     var platform = sdk.platform();
+    var platform_SA = sdk_SA.platform();
     var subscription = sdk.createSubscription();
 
+    // Login into RC and SA accounts
+    login_SA();
     login();
+
+    // Login to the SA Platform
+    function login_SA() {
+        return platform_SA.login({
+                username: process.env.SA_USERNAME,
+                password: process.env.SA_PASSWORD,
+                extension: process.env.SA_EXTENSION
+            })
+            .then(function(response){
+                console.log("The SA auth object is :",JSON.stringify(response.json(),null,2));
+                console.log("Successfully logged into the Service Account");
+            })
+            .catch(function(e){
+                console.log("Login Error into the Service Account Platform :", e);
+                throw e;
+            });
+    }
+
     // Login to the RingCentral Platform
     function login() {
         return platform.login({
@@ -46,7 +74,11 @@ require('dotenv').config();
                 password: process.env.RC_PASSWORD,
                 extension: process.env.RC_EXTENSION
             })
-            .then(init)
+            .then(function(response){
+                console.log("The RC auth object is :",JSON.stringify(response.json(),null,2));
+                console.log("Succesfully logged into the RC Account");
+                init();
+            })
             .catch(function(e){
                 console.log("Login Error into the RingCentral Platform :", e);
                 throw e;
@@ -209,7 +241,11 @@ require('dotenv').config();
 
     function sendSms(number) {
 
-        return platform
+        // Send SMS using the SA account
+
+        //Promise.resolve;
+
+        return Promise.resolve(platform_SA
             .post(Message.createUrl({sms: true}), {
                 from: {
                     phoneNumber: process.env.SOURCE_PHONE_NUMBER
@@ -217,13 +253,15 @@ require('dotenv').config();
                 to: [{phoneNumber: number}],
                 text: _tmpAlertMessage
             })
-            .then(function(response) {
+            .then(function(response){
                 return response;
             })
-            .catch(function(e) {
-                console.error("The error is in sendSMS : " + e.message);
-                throw (e);
-            });
+            .catch(function(e){
+                console.error("The error in sendSMS :" + e.message);
+                throw(e);
+            }));
+
+        //return;
     }
 
 
