@@ -245,7 +245,8 @@ require('dotenv').config();
 
         //Promise.resolve;
 
-        return Promise.resolve(platform_SA
+        // MAJOR FIX : Resolve the promise before returning RC platform promise.
+        Promise.resolve(platform_SA
             .post(Message.createUrl({sms: true}), {
                 from: {
                     phoneNumber: process.env.SOURCE_PHONE_NUMBER
