@@ -45,11 +45,7 @@ In order to communicate with the RingCentral API, you will need to have RingCent
     * **Platform Type:** Embedded
     * **Permissions Needed:**
         * Read Accounts
-        * Read Call Log
-        * Read Messages
-        * Read Presence
         * SMS
-        * Devices 
     * OAuth Redirect URI: http://localhost:3000
 3. Once you have successfully defined your application, you will need to obtain the API Credentials for your application to use in Development Environment Setup in the next steps. The `API Key` and `API Secret` values are accessible to you in the Credentials section for your application in the RingCentral Developer Portal.
 
