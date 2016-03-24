@@ -151,13 +151,16 @@ require('dotenv').config();
             messageAlert += '\n From Extension: ' + ext.extensionNumber;                                // Extension Number of the caller
             messageAlert += '\n From Number: ' + _cachedList[ext.id].phoneNumber;                       // Extension Number of the caller
             messageAlert += '\n LOCATION: ';                                                            // Retreive the Emergency Address from _cachedList
-            messageAlert += '\n\t\t Street 1: '  + _cachedList[ext.id].emergencyServiceAddress.street;
-            messageAlert += '\n\t\t Street 2: '  + _cachedList[ext.id].emergencyServiceAddress.street2;
-            messageAlert += '\n\t\t City: '    + _cachedList[ext.id].emergencyServiceAddress.city;
-            messageAlert += '\n\t\t State: '   + _cachedList[ext.id].emergencyServiceAddress.state;
-            messageAlert += '\n\t\t Country: ' + _cachedList[ext.id].emergencyServiceAddress.country;
-            messageAlert += '\n\t\t Zip: '     + _cachedList[ext.id].emergencyServiceAddress.zip;
-
+            if(!_cachedList[ext.id].emergencyServiceAddress) {
+                messageAlert += '\n\t\t Missing Emergency Service Address Info, please lookup the location';
+            } else {
+                messageAlert += '\n\t\t Street 1: '  + _cachedList[ext.id].emergencyServiceAddress.street;
+                messageAlert += '\n\t\t Street 2: '  + _cachedList[ext.id].emergencyServiceAddress.street2;
+                messageAlert += '\n\t\t City: '    + _cachedList[ext.id].emergencyServiceAddress.city;
+                messageAlert += '\n\t\t State: '   + _cachedList[ext.id].emergencyServiceAddress.state;
+                messageAlert += '\n\t\t Country: ' + _cachedList[ext.id].emergencyServiceAddress.country;
+                messageAlert += '\n\t\t Zip: '     + _cachedList[ext.id].emergencyServiceAddress.zip;
+            }
 
             _tmpAlertMessage = messageAlert;
 
@@ -203,7 +206,11 @@ require('dotenv').config();
             .then(function(response){
                 //var item = {};
                 _cachedList[device.extension.id] ={ };
-                _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
+                if(!response.json().emergencyServiceAddress) {
+                    console.error( 'MISSING EMERGENCY SERVICE ADDRESS FOR DEVICE - PLEASE CONFIGURE THIS FOR: ', response.json().phoneLines[0].phoneInfo.phoneNumber );
+                } else {
+                    _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
+                }
                 _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
 
             })
