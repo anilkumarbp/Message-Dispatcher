@@ -27,14 +27,15 @@ require('dotenv').config();
     var Message = helpers.message();
     var server = http.createServer();
 
-    // Initialize the sdk for RC
-    var sdk= new RC({
-        server: process.env.RC_API_BASE_URL,
-        appKey: process.env.RC_APP_KEY,
-        appSecret: process.env.RC_APP_SECRET
-    });
+// Initialize the sdk for RC
+var sdk= new RC({
+    server: process.env.RC_API_BASE_URL,
+    appKey: process.env.RC_APP_KEY,
+    appSecret: process.env.RC_APP_SECRET,
+    cachePrefix: process.env.RC_CACHE_PREFIX
+});
 
-    // Initialize the sdk for SA
+     //Initialize the sdk for SA
     var sdk_SA= new RC({
         server: process.env.SA_API_BASE_URL,
         appKey: process.env.SA_APP_KEY,
@@ -47,24 +48,25 @@ require('dotenv').config();
     var subscription = sdk.createSubscription();
 
     // Login into RC and SA accounts
-    login_SA();
-    login();
 
-    // Login to the SA Platform
+    login();
+    login_SA();
+
+     //Login to the SA Platform
     function login_SA() {
-        return platform_SA.login({
-                username: process.env.SA_USERNAME,
-                password: process.env.SA_PASSWORD,
-                extension: process.env.SA_EXTENSION
-            })
-            .then(function(response){
-                console.log("The SA auth object is :",JSON.stringify(response.json(),null,2));
-                console.log("Successfully logged into the Service Account");
-            })
-            .catch(function(e){
-                console.log("Login Error into the Service Account Platform :", e);
-                throw e;
-            });
+         platform_SA.login({
+                    username: process.env.SA_USERNAME,
+                    password: process.env.SA_PASSWORD,
+                    extension: process.env.SA_EXTENSION
+                })
+                .then(function(response){
+                    console.log("The SA auth object is :",JSON.stringify(response.json(),null,2));
+                    console.log("Successfully logged into the Service Account");
+                })
+                .catch(function(e){
+                    console.log("Login Error into the Service Account Platform :", e);
+                    throw e;
+                });
     }
 
     // Login to the RingCentral Platform
@@ -80,7 +82,7 @@ require('dotenv').config();
                 init();
             })
             .catch(function(e){
-                console.log("Login Error into the RingCentral Platform :", e);
+                console.log("Login Error into the Ringcentral Platform :", e);
                 throw e;
             });
     }
@@ -202,9 +204,14 @@ require('dotenv').config();
             .get('/account/~/device/' + device.id)
             .then(function(response){
                 //var item = {};
-                _cachedList[device.extension.id] ={ };
-                _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
-                _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
+                if(response.json().emergencyServiceAddress) {
+                    _cachedList[device.extension.id] = {};
+                    _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
+                    _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
+                }
+                else {
+                    console.log("The Device :",device.id + "with the phone number :",response.json().phoneLines[0].phoneInfo.phoneNumber + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
+                }
 
             })
             .catch((function(e){
@@ -241,12 +248,15 @@ require('dotenv').config();
 
     function sendSms(number) {
 
-        // Send SMS using the SA account
+        // Create a function to send SMS using SA account
+       sendSms_SA(number);
 
-        //Promise.resolve;
+    }
 
-        // MAJOR FIX : Resolve the promise before returning RC platform promise.
-        Promise.resolve(platform_SA
+
+    function sendSms_SA(number) {
+
+        platform_SA
             .post(Message.createUrl({sms: true}), {
                 from: {
                     phoneNumber: process.env.SOURCE_PHONE_NUMBER
@@ -260,11 +270,11 @@ require('dotenv').config();
             .catch(function(e){
                 console.error("The error in sendSMS :" + e.message);
                 throw(e);
-            }));
+            });
 
-        //return;
+        return platform;
+
     }
-
 
     // Server Event Listeners
     server.on('request', inboundRequest);
