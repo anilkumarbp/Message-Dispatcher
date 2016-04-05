@@ -11,6 +11,7 @@
   "license": "MIT",
   "homepage": "https://developer.ringcentral.com/api-docs/latest/index.html#!#Notifications.html",
   "dependencies": {
+    "async": "^2.0.0-rc.2",
     "dotenv": "^2.0.0",
     "ringcentral": "^2.0.4",
     "ringcentral-helpers": "^0.1.0"
