@@ -18,6 +18,7 @@ var helpers = require('ringcentral-helpers');
 var http = require('http');
 
 var _tmpAlertMessage = '';
+var sleep = require('sleep');
 
 
 // VARS
@@ -50,7 +51,7 @@ var subscription = sdk.createSubscription();
 // Login into RC and SA accounts
 
 login();
-login_SA();
+//login_SA();
 
 //Login to the SA Platform
 function login_SA() {
@@ -107,6 +108,8 @@ function init(loginData) {
                 perPage: process.env.DEVICES_PER_PAGE                                             //REDUCE NUMBER TO SPEED BOOTSTRAPPING
             })
             .then(function (response) {
+
+                console.log("The account level devices is :",JSON.stringify(response.json(),null,2));
                 var data = response.json();
 
                 devices = devices.concat(data.records);
@@ -125,11 +128,11 @@ function init(loginData) {
      */
     return getDevicesPage()
         .then(function (devices) {
-            return devices.filter(getPhysicalDevices)
+            return devices.filter(getPhysicalDevices);
                 //.map(organize);
         })
         .then(deviceAddress)
-        .then(organize)
+        //.then(organize)
         .then(startSubscription)
         .catch(function (e) {
             console.error("Error: getDevicesPage(): " + e);
@@ -144,27 +147,39 @@ function init(loginData) {
  */
 
 function deviceAddress(devices) {
+
+
+    console.log("Devices after filtering  :",devices);
+
     for(var i=0; i<devices.length; i++) {
 
         var device = devices[i];
+        _extensionFilterArray.push(generatePresenceEventFilter(device));
+
+        console.log("The device is :",device);
+
+        //sleep.sleep(1);
+
         platform
             .get('/account/~/device/' + device.id)
             .then(function (response) {
+                console.log("The respsone from get device by ID :",response.json());
                 if (response.json().emergencyServiceAddress) {
                     _cachedList[device.extension.id] = {};
                     _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
                     _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
                 }
                 else {
-                    console.log("The Device :", device.id + "with the phone number :", response.json().phoneLines[0].phoneInfo.phoneNumber + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
+                    console.log("The Device :", device.id + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
                 }
 
             })
             .catch((function (e) {
-                console.error("The error is in organize : " + e);
+                //console.error("The error is in organize : " + e);
                 throw(e);
             }));
     }
+
     return devices;
 }
 
@@ -205,11 +220,12 @@ function formatALert(extension) {
 }
 
 function getPhysicalDevices(device) {
-    if (FILTER_DEVICE_TYPE.indexOf(device.type) && device.extension) return 1;
+    if ((FILTER_DEVICE_TYPE==device.type) && device.extension) return 1;
 
 }
 
 function generatePresenceEventFilter(item) {
+    console.log("The item is :", item);
     if (!item) {
         ;
         throw new Error('Message-Dispatcher Error: generatePresenceEventFilter requires a parameter');
@@ -230,29 +246,29 @@ function loadAlertDataAndSend(extensionId) {
         });
 }
 
-
-function organize(device) {
-    _extensionFilterArray.push(generatePresenceEventFilter(device));
-    //_cachedList[device.extension.id] = device;
-    //return platform
-    //    .get('/account/~/device/' + device.id)
-    //    .then(function (response) {
-    //        //var item = {};
-    //        if (response.json().emergencyServiceAddress) {
-    //            _cachedList[device.extension.id] = {};
-    //            _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
-    //            _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
-    //        }
-    //        else {
-    //            console.log("The Device :", device.id + "with the phone number :", response.json().phoneLines[0].phoneInfo.phoneNumber + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
-    //        }
-    //
-    //    })
-    //    .catch((function (e) {
-    //        console.error("The error is in organize : " + e);
-    //        throw(e);
-    //    }));
-}
+//
+//function organize(device) {
+//    _extensionFilterArray.push(generatePresenceEventFilter(device));
+//    //_cachedList[device.extension.id] = device;
+//    //return platform
+//    //    .get('/account/~/device/' + device.id)
+//    //    .then(function (response) {
+//    //        //var item = {};
+//    //        if (response.json().emergencyServiceAddress) {
+//    //            _cachedList[device.extension.id] = {};
+//    //            _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
+//    //            _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
+//    //        }
+//    //        else {
+//    //            console.log("The Device :", device.id + "with the phone number :", response.json().phoneLines[0].phoneInfo.phoneNumber + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
+//    //        }
+//    //
+//    //    })
+//    //    .catch((function (e) {
+//    //        console.error("The error is in organize : " + e);
+//    //        throw(e);
+//    //    }));
+//}
 
 function startSubscription(devices) { //FIXME MAJOR Use devices list somehow
 
