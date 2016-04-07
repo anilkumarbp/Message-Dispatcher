@@ -103,7 +103,7 @@ function init(loginData) {
     return getDevicesPage()
         .then(function (devices) {
             console.log("************************************");
-            console.log("The Devices array is :", devices);
+              console.log("The Devices array is :", devices);
             console.log("************************************");
             _filteredDevices = devices.filter(getPhysicalDevices);
             console.log("The Filtered devices array is :", _filteredDevices);
