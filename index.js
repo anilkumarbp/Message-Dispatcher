@@ -17,12 +17,12 @@ var RC = require('ringcentral');
 var helpers = require('ringcentral-helpers');
 var http = require('http');
 var async = require("async");
-
 var _tmpAlertMessage = '';
 
 
 // VARS
 var _cachedList = [];
+var _filteredDevices = [];
 var _extensionFilterArray = [];
 var Extension = helpers.extension();
 var Message = helpers.message();
@@ -66,7 +66,9 @@ function init(loginData) {
     var devices = [];
     var page = 1;
 
+    console.log("************************************");
     console.log("The auth token is :", JSON.stringify(loginData.json(), null, 2));
+    console.log("************************************");
     function getDevicesPage() {
 
         // get the list of devoce with the Admin user privileges
@@ -79,7 +81,9 @@ function init(loginData) {
             })
             .then(function (response) {
                 var data = response.json();
+                console.log("************************************");
                 console.log("The devices for the account is :", JSON.stringify(data, null, 2));
+                console.log("************************************");
 
                 devices = devices.concat(data.records);
                 if (data.navigation.nextPage) {
@@ -98,8 +102,17 @@ function init(loginData) {
      */
     return getDevicesPage()
         .then(function (devices) {
-            console.log("The devices array is :", devices);
-            return devices.filter(getPhysicalDevices).map(organize);
+            console.log("************************************");
+            console.log("The Devices array is :", devices);
+            console.log("************************************");
+            _filteredDevices = devices.filter(getPhysicalDevices);
+            console.log("The Filtered devices array is :", _filteredDevices);
+            for (var i = 0; i < _filteredDevices.length; i++) {
+                //sleep.sleep(1);
+                organize(_filteredDevices[i]);
+            }
+            //return devices.filter(getPhysicalDevices);
+            //return devices.filter(getPhysicalDevices).map(organize);
         })
         .then(startSubscription)
         .catch(function (e) {
@@ -147,7 +160,7 @@ function formatALert(extension) {
 }
 
 function getPhysicalDevices(device) {
-    if (FILTER_DEVICE_TYPE.indexOf(device.type) && device.extension) return 1;
+    if ((FILTER_DEVICE_TYPE == device.type) && device.extension) return 1;
 
 }
 
@@ -160,7 +173,7 @@ function generatePresenceEventFilter(item) {
     }
 }
 
-function loadAlertDataAndSend(extensionId) {
+function loadAlertDbataAndSend(extensionId) {
     // TODO: Lookup Extension to capture user emergency information
     return platform
         .get('/account/~/extension/' + extensionId)
@@ -174,8 +187,10 @@ function loadAlertDataAndSend(extensionId) {
 
 
 function organize(device) {
+    console.log("The device passed to generatepresenceeventfilter is :", device);
     _extensionFilterArray.push(generatePresenceEventFilter(device));
     //_cachedList[device.extension.id] = device;
+
     return platform
         .get('/account/~/device/' + device.id)
         .then(function (response) {
@@ -187,7 +202,8 @@ function organize(device) {
 
         })
         .catch((function (e) {
-            console.error("The error is in organize : " + e);
+            //console.error("The error is in organize : " + e);
+            
             throw(e);
         }));
 }
