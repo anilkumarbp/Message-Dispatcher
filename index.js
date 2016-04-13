@@ -23,6 +23,7 @@ var sleep = require('sleep');
 
 // VARS
 var _cachedList = [];
+var _devices=[];
 var _extensionFilterArray = [];
 var Extension = helpers.extension();
 var Message = helpers.message();
@@ -50,8 +51,8 @@ var subscription = sdk.createSubscription();
 
 // Login into RC and SA accounts
 
-login();
-//login_SA();
+//login();
+login_SA();
 
 //Login to the SA Platform
 function login_SA() {
@@ -61,6 +62,7 @@ function login_SA() {
             extension: process.env.SA_EXTENSION
         })
         .then(function (response) {
+            login();
             console.log("The SA auth object is :", JSON.stringify(response.json(), null, 2));
             console.log("Successfully logged into the Service Account");
         })
@@ -109,8 +111,10 @@ function init(loginData) {
             })
             .then(function (response) {
 
-                console.log("The account level devices is :",JSON.stringify(response.json(),null,2));
+                //console.log("The account level devices is :", JSON.stringify(response.json(), null, 2));
                 var data = response.json();
+
+                console.log("************** THE NUMBER OF ACCOUNT LEVEL DEVICES ARE : ***************",data.records.length);
 
                 devices = devices.concat(data.records);
                 if (data.navigation.nextPage) {
@@ -128,12 +132,15 @@ function init(loginData) {
      */
     return getDevicesPage()
         .then(function (devices) {
+            console.log("************** The total devices getting filtered is : **********", devices.length);
             return devices.filter(getPhysicalDevices);
-                //.map(organize);
+            //.map(organize);
         })
+        .then(createEventFilter)
+        .then(startSubscription)
         .then(deviceAddress)
         //.then(organize)
-        .then(startSubscription)
+
         .catch(function (e) {
             console.error("Error: getDevicesPage(): " + e);
             throw e;
@@ -141,46 +148,58 @@ function init(loginData) {
 
 }
 
+/*
+ To generate the presence Event Filter for subscription
+ */
+function createEventFilter(devices) {
+    _devices = devices;
+    for (var i = 0; i < devices.length; i++) {
+
+        var device = devices[i];
+        _extensionFilterArray.push(generatePresenceEventFilter(device));
+
+    }
+    return devices;
+}
 
 /*/
  function deviceAddress
  */
 
-function deviceAddress(devices) {
+function deviceAddress() {
+
+        console.log("************** THE DEVICES AFTER FILTERING IS :****************",_devices.length);
+
+        for (var i = 1; i <= _devices.length; i++) {
+
+            var device = _devices[i-1];
+
+                        platform
+                            .get('/account/~/device/' + device.id)
+                            .then(function (response) {
+                                console.log("The respsone from get device by ID :", response.json());
+                                if (response.json().emergencyServiceAddress) {
+                                    _cachedList[device.extension.id] = {};
+                                    _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
+                                    _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
+                                }
+                                else {
+                                    console.log("The Device :", device.id + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
+                                }
+
+                            })
+                            .catch((function (e) {
+                                //console.error("The error is in organize : " + e);
+                                throw(e);
+                            }));
 
 
-    console.log("Devices after filtering  :",devices);
-
-    for(var i=0; i<devices.length; i++) {
-
-        var device = devices[i];
-        _extensionFilterArray.push(generatePresenceEventFilter(device));
-
-        console.log("The device is :",device);
-
-        //sleep.sleep(1);
-
-        platform
-            .get('/account/~/device/' + device.id)
-            .then(function (response) {
-                console.log("The respsone from get device by ID :",response.json());
-                if (response.json().emergencyServiceAddress) {
-                    _cachedList[device.extension.id] = {};
-                    _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
-                    _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
-                }
-                else {
-                    console.log("The Device :", device.id + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
-                }
-
-            })
-            .catch((function (e) {
-                //console.error("The error is in organize : " + e);
-                throw(e);
-            }));
-    }
-
-    return devices;
+                    if(i%5==0 && i%3==0) {
+                        setTimeout(function(){
+                            console.log("$$$$$$$$$$$$$$$$$ Retreived ",i," : devices so far");
+                        }, 6000);
+                    }
+        }
 }
 
 
@@ -220,16 +239,17 @@ function formatALert(extension) {
 }
 
 function getPhysicalDevices(device) {
-    if ((FILTER_DEVICE_TYPE==device.type) && device.extension) return 1;
+    if ((FILTER_DEVICE_TYPE == device.type) && device.extension) return 1;
 
 }
 
 function generatePresenceEventFilter(item) {
-    console.log("The item is :", item);
+    //console.log("The item is :", item);
     if (!item) {
         ;
         throw new Error('Message-Dispatcher Error: generatePresenceEventFilter requires a parameter');
     } else {
+        //console.log("The Presence Filter added for the extension :" + item.extension.id + ' : /account/~/extension/' + item.extension.id + '/presence?detailedTelephonyState=true');
         return '/account/~/extension/' + item.extension.id + '/presence?detailedTelephonyState=true';
     }
 }
@@ -246,33 +266,10 @@ function loadAlertDataAndSend(extensionId) {
         });
 }
 
-//
-//function organize(device) {
-//    _extensionFilterArray.push(generatePresenceEventFilter(device));
-//    //_cachedList[device.extension.id] = device;
-//    //return platform
-//    //    .get('/account/~/device/' + device.id)
-//    //    .then(function (response) {
-//    //        //var item = {};
-//    //        if (response.json().emergencyServiceAddress) {
-//    //            _cachedList[device.extension.id] = {};
-//    //            _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
-//    //            _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
-//    //        }
-//    //        else {
-//    //            console.log("The Device :", device.id + "with the phone number :", response.json().phoneLines[0].phoneInfo.phoneNumber + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
-//    //        }
-//    //
-//    //    })
-//    //    .catch((function (e) {
-//    //        console.error("The error is in organize : " + e);
-//    //        throw(e);
-//    //    }));
-//}
 
 function startSubscription(devices) { //FIXME MAJOR Use devices list somehow
 
-    console.log("STARTING TO CREATE SUBSCRIPTION ON ALL DEVICES");
+    console.log("********* STARTING TO CREATE SUBSCRIPTION ON ALL FILTERED DEVICES ***************");
     return subscription
         .setEventFilters(_extensionFilterArray)
         .register();
