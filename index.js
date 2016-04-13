@@ -188,13 +188,15 @@ function deviceAddress() {
                         platform
                             .get('/account/~/device/' + device.id)
                             .then(function (response) {
-                                console.log("The respsone from get device by ID :", response.json());
+                                //console.log("The respsone from get device by ID :", response.json());
                                 if (response.json().emergencyServiceAddress) {
                                     console.log("Pushing the device with extension id :",device.extension.id);
                                     _cachedList[device.extension.id] = {};
                                     _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
                                     _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
-                                    console.log("The Length of the _cached List now is :", _cachedList.length);
+                                    //console.log("The Length of the _cached List now is :", _cachedList.length);
+                                    console.log("********The emergency address for device with extension id :",device.extension.id,"is : ",_cachedList[device.extension.id].emergencyServiceAddress);
+                                    console.log("*********The emergency phone number for device with extension id :",device.extension.id,"is : ",_cachedList[device.extension.id].phoneNumber);
                                 }
                                 else {
                                     console.log("The Device :", device.id + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
@@ -235,20 +237,23 @@ function formatALert(extension) {
 
         console.log("The extension details are :", JSON.stringify(ext,null,2));
 
+        console.log(" The extensions exixts in cached array :", _cachedList[ext.id] ? true: false);
+
         // For SMS, subject has 160 char max
         var messageAlert = '!! EMERGENCY ALERT: Outbound call to 911 !!';
         messageAlert += '\n First Name: ' + ext.contact.firstName;                                  // First Name of the caller
         messageAlert += '\n Last Name: ' + ext.contact.lastName;                                   // Last Name of the caller
         messageAlert += '\n Email: ' + ext.contact.email;                                          // Email id of the caller
         messageAlert += '\n From Extension: ' + ext.extensionNumber;                                // Extension Number of the caller
-        //messageAlert += '\n From Number: ' + _cachedList[ext.id].phoneNumber;                       // Extension Number of the caller
-        //messageAlert += '\n LOCATION: ';                                                            // Retreive the Emergency Address from _cachedList
-        //messageAlert += '\n\t\t Street 1: ' + _cachedList[ext.id].emergencyServiceAddress.street;
-        //messageAlert += '\n\t\t Street 2: ' + _cachedList[ext.id].emergencyServiceAddress.street2;
-        //messageAlert += '\n\t\t City: ' + _cachedList[ext.id].emergencyServiceAddress.city;
-        //messageAlert += '\n\t\t State: ' + _cachedList[ext.id].emergencyServiceAddress.state;
-        //messageAlert += '\n\t\t Country: ' + _cachedList[ext.id].emergencyServiceAddress.country;
-        //messageAlert += '\n\t\t Zip: ' + _cachedList[ext.id].emergencyServiceAddress.zip;
+        messageAlert += '\n From Number: ' + (_cachedList[ext.id] ? _cachedList[ext.id].phoneNumber : ext.contact.businessPhone);                       // Extension Number of the caller
+        messageAlert += '\n LOCATION: ';                                                            // Retreive the Emergency Address from _cachedList
+        messageAlert += '\n\t\t Street 1: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.street : ext.contact.businessAddress.street);
+        messageAlert += '\n\t\t Street 2: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.street2 : ext.contact.businessAddress.street);
+        messageAlert += '\n\t\t City: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.city : ext.contact.businessAddress.city);
+        messageAlert += '\n\t\t State: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.state : ext.contact.businessAddress.state);
+        messageAlert += '\n\t\t Zip: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.zip : ext.contact.businessAddress.zip);
+        messageAlert += '\n\t\t Country: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.country : ext.contact.businessAddress.country);
+
 
 
         _tmpAlertMessage = messageAlert;
