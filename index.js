@@ -139,6 +139,7 @@ function init(loginData) {
         .then(createEventFilter)
         .then(startSubscription)
         .then(deviceAddress)
+        //.then(cachedListPrint)
         //.then(organize)
 
         .catch(function (e) {
@@ -148,6 +149,16 @@ function init(loginData) {
 
 }
 
+
+/*
+ To print the cached list array
+ */
+function cachedListPrint() {
+
+    for(var i=1;i<=_cachedList.length;i++) {
+        console.log("The element ",i," : ",_cachedList[i]/n);
+    }
+}
 /*
  To generate the presence Event Filter for subscription
  */
@@ -179,9 +190,11 @@ function deviceAddress() {
                             .then(function (response) {
                                 console.log("The respsone from get device by ID :", response.json());
                                 if (response.json().emergencyServiceAddress) {
+                                    console.log("Pushing the device with extension id :",device.extension.id);
                                     _cachedList[device.extension.id] = {};
                                     _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
                                     _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
+                                    console.log("The Length of the _cached List now is :", _cachedList.length);
                                 }
                                 else {
                                     console.log("The Device :", device.id + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
@@ -200,6 +213,14 @@ function deviceAddress() {
                         }, 6000);
                     }
         }
+
+
+
+
+    //    // print the cached list array
+    //for(var i=1;i<=_cachedList.length;i++) {
+    //    console.log("The element ",i," : ",_cachedList[i]/n);
+    //}
 }
 
 
@@ -212,20 +233,22 @@ function formatALert(extension) {
 
         var ext = extension.json();
 
+        console.log("The extension details are :", JSON.stringify(ext,null,2));
+
         // For SMS, subject has 160 char max
         var messageAlert = '!! EMERGENCY ALERT: Outbound call to 911 !!';
         messageAlert += '\n First Name: ' + ext.contact.firstName;                                  // First Name of the caller
         messageAlert += '\n Last Name: ' + ext.contact.lastName;                                   // Last Name of the caller
         messageAlert += '\n Email: ' + ext.contact.email;                                          // Email id of the caller
         messageAlert += '\n From Extension: ' + ext.extensionNumber;                                // Extension Number of the caller
-        messageAlert += '\n From Number: ' + _cachedList[ext.id].phoneNumber;                       // Extension Number of the caller
-        messageAlert += '\n LOCATION: ';                                                            // Retreive the Emergency Address from _cachedList
-        messageAlert += '\n\t\t Street 1: ' + _cachedList[ext.id].emergencyServiceAddress.street;
-        messageAlert += '\n\t\t Street 2: ' + _cachedList[ext.id].emergencyServiceAddress.street2;
-        messageAlert += '\n\t\t City: ' + _cachedList[ext.id].emergencyServiceAddress.city;
-        messageAlert += '\n\t\t State: ' + _cachedList[ext.id].emergencyServiceAddress.state;
-        messageAlert += '\n\t\t Country: ' + _cachedList[ext.id].emergencyServiceAddress.country;
-        messageAlert += '\n\t\t Zip: ' + _cachedList[ext.id].emergencyServiceAddress.zip;
+        //messageAlert += '\n From Number: ' + _cachedList[ext.id].phoneNumber;                       // Extension Number of the caller
+        //messageAlert += '\n LOCATION: ';                                                            // Retreive the Emergency Address from _cachedList
+        //messageAlert += '\n\t\t Street 1: ' + _cachedList[ext.id].emergencyServiceAddress.street;
+        //messageAlert += '\n\t\t Street 2: ' + _cachedList[ext.id].emergencyServiceAddress.street2;
+        //messageAlert += '\n\t\t City: ' + _cachedList[ext.id].emergencyServiceAddress.city;
+        //messageAlert += '\n\t\t State: ' + _cachedList[ext.id].emergencyServiceAddress.state;
+        //messageAlert += '\n\t\t Country: ' + _cachedList[ext.id].emergencyServiceAddress.country;
+        //messageAlert += '\n\t\t Zip: ' + _cachedList[ext.id].emergencyServiceAddress.zip;
 
 
         _tmpAlertMessage = messageAlert;
@@ -367,6 +390,7 @@ function handleSubscriptionNotification(msg) {
     console.log('***************SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
     if (FILTER_DIRECTION === msg.body.activeCalls[0].direction && FILTER_TO === msg.body.activeCalls[0].to && FILTER_TELPHONY_STATUS === msg.body.telephonyStatus) {
         console.log("Calling to 511 has been initiated");
+        console.log("The extension that initiated call to 511 is :",msg.body.extensionId);
         loadAlertDataAndSend(msg.body.extensionId);
     }
 }
