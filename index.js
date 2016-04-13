@@ -138,11 +138,8 @@ function init(loginData) {
         })
         .then(createEventFilter)
         .then(startSubscription)
-        .then(deviceAddress)
-        //.then(cachedListPrint)
-        //.then(organize)
-
-        .catch(function (e) {
+        //.then(deviceAddress)
+            .catch(function (e) {
             console.error("Error: getDevicesPage(): " + e);
             throw e;
         });
@@ -195,8 +192,8 @@ function deviceAddress() {
                                     _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
                                     _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
                                     //console.log("The Length of the _cached List now is :", _cachedList.length);
-                                    console.log("********The emergency address for device with extension id :",device.extension.id,"is : ",_cachedList[device.extension.id].emergencyServiceAddress);
-                                    console.log("*********The emergency phone number for device with extension id :",device.extension.id,"is : ",_cachedList[device.extension.id].phoneNumber);
+                                    console.log("************* The emergency address for device with extension id :",device.extension.id,"is : ",_cachedList[device.extension.id].emergencyServiceAddress);
+                                    console.log("************* The emergency phone number for device with extension id :",device.extension.id,"is : ",_cachedList[device.extension.id].phoneNumber);
                                 }
                                 else {
                                     console.log("The Device :", device.id + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
@@ -204,25 +201,20 @@ function deviceAddress() {
 
                             })
                             .catch((function (e) {
-                                //console.error("The error is in organize : " + e);
+                                console.error("The error is in organize : " + e);
                                 throw(e);
                             }));
 
 
+                    // setTimeout function
                     if(i%5==0 && i%3==0) {
                         setTimeout(function(){
-                            console.log("$$$$$$$$$$$$$$$$$ Retreived ",i," : devices so far");
+                            console.log("************* Retreived ",i," : devices so far ************");
                         }, 6000);
                     }
+
         }
 
-
-
-
-    //    // print the cached list array
-    //for(var i=1;i<=_cachedList.length;i++) {
-    //    console.log("The element ",i," : ",_cachedList[i]/n);
-    //}
 }
 
 
@@ -392,7 +384,7 @@ function inboundRequest(req, res) {
  * Subscription Event Handlers   - to capture events on telephonyStatus ~ callConnected
  **/
 function handleSubscriptionNotification(msg) {
-    console.log('***************SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
+    console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
     if (FILTER_DIRECTION === msg.body.activeCalls[0].direction && FILTER_TO === msg.body.activeCalls[0].to && FILTER_TELPHONY_STATUS === msg.body.telephonyStatus) {
         console.log("Calling to 511 has been initiated");
         console.log("The extension that initiated call to 511 is :",msg.body.extensionId);
