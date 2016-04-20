@@ -51,8 +51,8 @@ var subscription = sdk.createSubscription();
 
 // Login into RC and SA accounts
 
-//login();
-login_SA();
+login();
+//login_SA();
 
 //Login to the SA Platform
 function login_SA() {
@@ -138,7 +138,7 @@ function init(loginData) {
         })
         .then(createEventFilter)
         .then(startSubscription)
-        //.then(deviceAddress)
+        .then(deviceAddress)
             .catch(function (e) {
             console.error("Error: getDevicesPage(): " + e);
             throw e;
@@ -180,38 +180,37 @@ function deviceAddress() {
 
         for (var i = 1; i <= _devices.length; i++) {
 
+
             var device = _devices[i-1];
 
-                        platform
-                            .get('/account/~/device/' + device.id)
-                            .then(function (response) {
-                                //console.log("The respsone from get device by ID :", response.json());
-                                if (response.json().emergencyServiceAddress) {
-                                    console.log("Pushing the device with extension id :",device.extension.id);
-                                    _cachedList[device.extension.id] = {};
-                                    _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
-                                    _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
-                                    //console.log("The Length of the _cached List now is :", _cachedList.length);
-                                    console.log("************* The emergency address for device with extension id :",device.extension.id,"is : ",_cachedList[device.extension.id].emergencyServiceAddress);
-                                    console.log("************* The emergency phone number for device with extension id :",device.extension.id,"is : ",_cachedList[device.extension.id].phoneNumber);
-                                }
-                                else {
-                                    console.log("The Device :", device.id + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
-                                }
+            // setTimeout function
 
-                            })
-                            .catch((function (e) {
-                                console.error("The error is in organize : " + e);
-                                throw(e);
-                            }));
+                setTimeout(function(){
+                    console.log("************* Retreived ",i," : devices so far ************");
+                    platform
+                        .get('/account/~/device/' + device.id)
+                        .then(function (response) {
+                            //console.log("The respsone from get device by ID :", response.json());
+                            if (response.json().emergencyServiceAddress) {
+                                console.log("Pushing the device with extension id :",device.extension.id);
+                                _cachedList[device.extension.id] = {};
+                                _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
+                                _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
+                                //console.log("The Length of the _cached List now is :", _cachedList.length);
+                                console.log("************* The emergency address for device with extension id :",device.extension.id,"is : ",_cachedList[device.extension.id].emergencyServiceAddress);
+                                console.log("************* The emergency phone number for device with extension id :",device.extension.id,"is : ",_cachedList[device.extension.id].phoneNumber);
+                            }
+                            else {
+                                console.log("The Device :", device.id + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
+                            }
 
-
-                    // setTimeout function
-                    if(i%5==0 && i%3==0) {
-                        setTimeout(function(){
-                            console.log("************* Retreived ",i," : devices so far ************");
-                        }, 6000);
-                    }
+                        })
+                        .catch((function (e) {
+                            console.error("The error is in organize : " + e);
+                            throw(e);
+                        }));
+                }, 1500);
+            //}
 
         }
 
