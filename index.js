@@ -18,7 +18,6 @@ var helpers = require('ringcentral-helpers');
 var http = require('http');
 
 var _tmpAlertMessage = '';
-var sleep = require('sleep');
 
 
 // VARS
@@ -138,14 +137,29 @@ function init(loginData) {
         })
         .then(createEventFilter)
         .then(startSubscription)
-        .then(deviceAddress)
-            .catch(function (e) {
-            console.error("Error: getDevicesPage(): " + e);
+        .then(throttledDeviceAddress)
+        .catch(function (e) {
+            console.error(e);
             throw e;
         });
 
 }
 
+/*
+ Throttling for Usage Plan API Endpoints (see .env for CONST)
+*/
+function throttledDeviceAddress(index) {
+    console.log("************** NUMBER OF DEVICES AFTER FILTERING: " + _devices.length + " ****************");
+    var numberOfDevices = _devices.length;
+    var maxPerMin = process.env.MAX_DEVICES_PER_MIN;
+
+    // setInterval uses milliseconds
+    var second = 1000;
+    // Define frequency as number of devices divided by maximum requests per minutue and multiply to obtain millisecond value
+    var delay = ( numberOfDevices / process.env.MAX_DEVICES_PER_MIN ) * second;
+
+    setTimeout( deviceAddress, delay, index );
+}
 
 /*
  To print the cached list array
@@ -174,46 +188,34 @@ function createEventFilter(devices) {
  function deviceAddress
  */
 
-function deviceAddress() {
+function deviceAddress(idx) {
+    if(typeof idx !== 'number') idx = 0;
+    var device = _devices[idx];
+    console.log("************* Retreived " + (idx + 1) + " : devices so far ************");
+    platform
+        .get('/account/~/device/' + device.id)
+        .then(function (response) {
+            //console.log("The respsone from get device by ID :", response.json());
+            if (response.json().emergencyServiceAddress) {
+                console.log("Pushing the device with extension id :", device.extension.id);
+                _cachedList[device.extension.id] = {};
+                _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
+                _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
+                //console.log("The Length of the _cached List now is :", _cachedList.length);
+                console.log("************* The emergency address for device with extension id :" + device.extension.id + "is : " + _cachedList[device.extension.id].emergencyServiceAddress);
+                console.log("************* The emergency phone number for device with extension id :" + device.extension.id + "is : " + _cachedList[device.extension.id].phoneNumber);
+            }
+            else {
+                console.log("The Device :" + device.id + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
+            }
 
-        console.log("************** THE DEVICES AFTER FILTERING IS :****************",_devices.length);
-
-        for (var i = 1; i <= _devices.length; i++) {
-
-
-            var device = _devices[i-1];
-
-            // setTimeout function
-
-                setTimeout(function(){
-                    console.log("************* Retreived ",i," : devices so far ************");
-                    platform
-                        .get('/account/~/device/' + device.id)
-                        .then(function (response) {
-                            //console.log("The respsone from get device by ID :", response.json());
-                            if (response.json().emergencyServiceAddress) {
-                                console.log("Pushing the device with extension id :",device.extension.id);
-                                _cachedList[device.extension.id] = {};
-                                _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
-                                _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
-                                //console.log("The Length of the _cached List now is :", _cachedList.length);
-                                console.log("************* The emergency address for device with extension id :",device.extension.id,"is : ",_cachedList[device.extension.id].emergencyServiceAddress);
-                                console.log("************* The emergency phone number for device with extension id :",device.extension.id,"is : ",_cachedList[device.extension.id].phoneNumber);
-                            }
-                            else {
-                                console.log("The Device :", device.id + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
-                            }
-
-                        })
-                        .catch((function (e) {
-                            console.error("The error is in organize : " + e);
-                            throw(e);
-                        }));
-                }, 1500);
-            //}
-
-        }
-
+            idx++;
+            if(idx <= _devices.length) {throttledDeviceAddress(idx);}
+        })
+        .catch(function (e) {
+            console.error("The error is in organize : " + e);
+            throw(e);
+        });
 }
 
 
@@ -383,12 +385,14 @@ function inboundRequest(req, res) {
  * Subscription Event Handlers   - to capture events on telephonyStatus ~ callConnected
  **/
 function handleSubscriptionNotification(msg) {
+    /*
     console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
     if (FILTER_DIRECTION === msg.body.activeCalls[0].direction && FILTER_TO === msg.body.activeCalls[0].to && FILTER_TELPHONY_STATUS === msg.body.telephonyStatus) {
         console.log("Calling to 511 has been initiated");
         console.log("The extension that initiated call to 511 is :",msg.body.extensionId);
         loadAlertDataAndSend(msg.body.extensionId);
     }
+    */
 }
 
 function handleRemoveSubscriptionSuccess(data) {
