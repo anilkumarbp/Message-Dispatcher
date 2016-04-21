@@ -296,12 +296,16 @@ function formatAlert(extension) {
         messageAlert += '\n From Extension: ' + ext.extensionNumber;                                // Extension Number of the caller
         messageAlert += '\n From Number: ' + (_cachedList[ext.id] ? _cachedList[ext.id].phoneNumber : ext.contact.businessPhone);                       // Extension Number of the caller
         messageAlert += '\n LOCATION: ';                                                            // Retreive the Emergency Address from _cachedList
-        messageAlert += '\n\t\t Street 1: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.street : street1);
-        messageAlert += '\n\t\t Street 2: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.street2 : street2);
-        messageAlert += '\n\t\t City: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.city : city);
-        messageAlert += '\n\t\t State: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.state : state);
-        messageAlert += '\n\t\t Zip: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.zip : zip);
-        messageAlert += '\n\t\t Country: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.country : country);
+        if(!_cachedList[ext.id].emergencyServiceAddress) {
+            messageAlert += '\n\t Missing Emergency Service Address info, you MUST lookup the location';
+        } else {
+            messageAlert += '\n\t\t Street 1: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.street : street1);
+            messageAlert += '\n\t\t Street 2: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.street2 : street2);
+            messageAlert += '\n\t\t City: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.city : city);
+            messageAlert += '\n\t\t State: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.state : state);
+            messageAlert += '\n\t\t Zip: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.zip : zip);
+            messageAlert += '\n\t\t Country: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.country : country);
+        {
 
 
 
