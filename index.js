@@ -201,7 +201,7 @@ function deviceAddress(idx) {
     platform
         .get('/account/~/device/' + device.id)
         .then(function (response) {
-            console.log("The respsone from get device by ID :", response.json());
+            //console.log("The respsone from get device by ID :", response.json());
             if (response.json().emergencyServiceAddress) {
                 _cachedList[device.extension.id] = {};
                 _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
@@ -246,9 +246,9 @@ function emergencyLookUp(extension) {
                      platform
                         .get('/account/~/device/' + device.value)
                         .then(function (response) {
-                            console.log("Within the formatalert", JSON.stringify(response.json(), null, 2));
+                            //console.log("Within the formatalert", JSON.stringify(response.json(), null, 2));
                             if (response.json().emergencyServiceAddress) {
-                                
+
                                 street1 = response.json().emergencyServiceAddress.street;
                                 street2 = response.json().emergencyServiceAddress.street;
                                 city = response.json().emergencyServiceAddress.city;
