@@ -1,7 +1,9 @@
 'use strict';
 
 // Handle local development and testing
-require('dotenv').config();
+if( process.env.RC_ENVIRONMENT !== 'Production' ) {
+    require('dotenv').config();
+}
 
 // CONSTANTS - obtained from environment variables
 var PORT = process.env.PORT;
