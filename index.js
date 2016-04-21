@@ -176,6 +176,7 @@ function emergencyLookUp(extension) {
             .get('/account/~/device/' + device.id)
             .then(function (response) {
                 if (response.json().emergencyServiceAddress) {
+                    console.log(' The Device Lookup is : ', JSON.stringify(response.json(),null,2));
                     console.log(' LOOKUP EA DATA: ', response.json().emergencyServiceAddress);
                     fulfill({
                         street1: response.json().emergencyServiceAddress.street,
@@ -384,7 +385,7 @@ function handleSubscriptionNotification(msg) {
                 console.log("The extension that initiated call to 511 is :",msg.body.extensionId);
                 loadAlertDataAndSend(extensionId);
             } else {
-                console.log('DNQ');
+                //console.log('DNQ');
             }
         }
     }
