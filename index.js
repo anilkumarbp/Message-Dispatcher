@@ -27,6 +27,8 @@ var _extensionFilterArray = [];
 var Extension = helpers.extension();
 var Message = helpers.message();
 var server = http.createServer();
+var deviceIDExtensionIDLookup = [];
+var street1,street2,city,state,zip,country,fromNumber;
 
 // Initialize the sdk for RC
 var sdk = new RC({
@@ -50,8 +52,8 @@ var subscription = sdk.createSubscription();
 
 // Login into RC and SA accounts
 
-login();
-//login_SA();
+//login();
+login_SA();
 
 //Login to the SA Platform
 function login_SA() {
@@ -149,14 +151,15 @@ function init(loginData) {
  Throttling for Usage Plan API Endpoints (see .env for CONST)
 */
 function throttledDeviceAddress(index) {
-    console.log("************** NUMBER OF DEVICES AFTER FILTERING: " + _devices.length + " ****************");
+    console.log("* NUMBER OF DEVICES AFTER FILTERING: " + _devices.length + " ****");
     var numberOfDevices = _devices.length;
     var maxPerMin = process.env.MAX_DEVICES_PER_MIN;
+    var delay;
 
     // setInterval uses milliseconds
     var second = 1000;
     // Define frequency as number of devices divided by maximum requests per minutue and multiply to obtain millisecond value
-    var delay = ( numberOfDevices / process.env.MAX_DEVICES_PER_MIN ) * second;
+    delay = (maxPerMin > numberOfDevices) ? 250 : (numberOfDevices / maxPerMin) * second;
 
     setTimeout( deviceAddress, delay, index );
 }
@@ -177,8 +180,12 @@ function createEventFilter(devices) {
     _devices = devices;
     for (var i = 0; i < devices.length; i++) {
 
-        var device = devices[i];
-        _extensionFilterArray.push(generatePresenceEventFilter(device));
+            var device = devices[i];
+            _extensionFilterArray.push(generatePresenceEventFilter(device));
+            deviceIDExtensionIDLookup.push({
+                key: JSON.stringify(device.extension.id),
+                value: device.id
+        });
 
     }
     return devices;
@@ -191,26 +198,22 @@ function createEventFilter(devices) {
 function deviceAddress(idx) {
     if(typeof idx !== 'number') idx = 0;
     var device = _devices[idx];
-    console.log("************* Retreived " + (idx + 1) + " : devices so far ************");
     platform
         .get('/account/~/device/' + device.id)
         .then(function (response) {
-            //console.log("The respsone from get device by ID :", response.json());
+            console.log("The respsone from get device by ID :", response.json());
             if (response.json().emergencyServiceAddress) {
-                console.log("Pushing the device with extension id :", device.extension.id);
                 _cachedList[device.extension.id] = {};
                 _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
                 _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
-                //console.log("The Length of the _cached List now is :", _cachedList.length);
-                console.log("************* The emergency address for device with extension id :" + device.extension.id + "is : " + _cachedList[device.extension.id].emergencyServiceAddress);
-                console.log("************* The emergency phone number for device with extension id :" + device.extension.id + "is : " + _cachedList[device.extension.id].phoneNumber);
+
             }
             else {
                 console.log("The Device :" + device.id + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
             }
 
             idx++;
-            if(idx <= _devices.length) {throttledDeviceAddress(idx);}
+            if(idx < _devices.length) {throttledDeviceAddress(idx);}
         })
         .catch(function (e) {
             console.error("The error is in organize : " + e);
@@ -220,17 +223,70 @@ function deviceAddress(idx) {
 
 
 /*
- Format the alert
+ Emergency Lookup while Lazy Loading Device Information
  */
-function formatALert(extension) {
+
+function emergencyLookUp(extension) {
 
     try {
 
         var ext = extension.json();
 
-        console.log("The extension details are :", JSON.stringify(ext,null,2));
+        // Optional check if the lazy loading has not occured
+        if (_cachedList[ext.id] == undefined) {
 
-        console.log(" The extensions exixts in cached array :", _cachedList[ext.id] ? true: false);
+            var device;
+
+            for (var i = 0; i < deviceIDExtensionIDLookup.length; i++) {
+
+                device = deviceIDExtensionIDLookup[i];
+
+                if (device.key == ext.id) {
+
+                     platform
+                        .get('/account/~/device/' + device.value)
+                        .then(function (response) {
+                            console.log("Within the formatalert", JSON.stringify(response.json(), null, 2));
+                            if (response.json().emergencyServiceAddress) {
+                                
+                                street1 = response.json().emergencyServiceAddress.street;
+                                street2 = response.json().emergencyServiceAddress.street;
+                                city = response.json().emergencyServiceAddress.city;
+                                state = response.json().emergencyServiceAddress.state;
+                                zip = response.json().emergencyServiceAddress.zip;
+                                country = response.json().emergencyServiceAddress.country;
+
+                            }
+                            else {
+                                console.log("The Device :" + device.id + " has no emergency address attached to it. Kindly Add the Emergency Address to it.");
+                            }
+
+                        })
+                        .catch(function (e) {
+                            console.error("The error is in organize : " + e);
+                            throw(e);
+                        });
+                }
+            }
+
+        }
+
+
+
+    } catch (e) {
+        console.error("The error is in emergencyLookUp : " + e);
+        throw e;
+    }
+    return extension;
+}
+/*
+ Format the alert
+ */
+function formatAlert(extension) {
+
+    try {
+
+        var ext = extension.json();
 
         // For SMS, subject has 160 char max
         var messageAlert = '!! EMERGENCY ALERT: Outbound call to 911 !!';
@@ -240,16 +296,18 @@ function formatALert(extension) {
         messageAlert += '\n From Extension: ' + ext.extensionNumber;                                // Extension Number of the caller
         messageAlert += '\n From Number: ' + (_cachedList[ext.id] ? _cachedList[ext.id].phoneNumber : ext.contact.businessPhone);                       // Extension Number of the caller
         messageAlert += '\n LOCATION: ';                                                            // Retreive the Emergency Address from _cachedList
-        messageAlert += '\n\t\t Street 1: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.street : ext.contact.businessAddress.street);
-        messageAlert += '\n\t\t Street 2: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.street2 : ext.contact.businessAddress.street);
-        messageAlert += '\n\t\t City: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.city : ext.contact.businessAddress.city);
-        messageAlert += '\n\t\t State: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.state : ext.contact.businessAddress.state);
-        messageAlert += '\n\t\t Zip: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.zip : ext.contact.businessAddress.zip);
-        messageAlert += '\n\t\t Country: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.country : ext.contact.businessAddress.country);
+        messageAlert += '\n\t\t Street 1: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.street : street1);
+        messageAlert += '\n\t\t Street 2: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.street2 : street2);
+        messageAlert += '\n\t\t City: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.city : city);
+        messageAlert += '\n\t\t State: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.state : state);
+        messageAlert += '\n\t\t Zip: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.zip : zip);
+        messageAlert += '\n\t\t Country: ' + (_cachedList[ext.id] ? _cachedList[ext.id].emergencyServiceAddress.country : country);
 
 
 
         _tmpAlertMessage = messageAlert;
+
+        console.log("The message is :",messageAlert);
 
         return messageAlert;
 
@@ -279,7 +337,8 @@ function loadAlertDataAndSend(extensionId) {
     // TODO: Lookup Extension to capture user emergency information
     return platform
         .get('/account/~/extension/' + extensionId)
-        .then(formatALert)                                                                      // format the alert message
+        .then(emergencyLookUp)
+        .then(formatAlert)                                                                      // format the alert message
         .then(sendAlerts)                                                                       // send SMS Alert
         .catch(function (e) {
             console.error("The error is in loadAlertDataAndSend : " + e);
@@ -385,14 +444,14 @@ function inboundRequest(req, res) {
  * Subscription Event Handlers   - to capture events on telephonyStatus ~ callConnected
  **/
 function handleSubscriptionNotification(msg) {
-    /*
+
     console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
     if (FILTER_DIRECTION === msg.body.activeCalls[0].direction && FILTER_TO === msg.body.activeCalls[0].to && FILTER_TELPHONY_STATUS === msg.body.telephonyStatus) {
         console.log("Calling to 511 has been initiated");
         console.log("The extension that initiated call to 511 is :",msg.body.extensionId);
         loadAlertDataAndSend(msg.body.extensionId);
     }
-    */
+
 }
 
 function handleRemoveSubscriptionSuccess(data) {
