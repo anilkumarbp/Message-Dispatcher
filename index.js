@@ -246,7 +246,7 @@ function emergencyLookUp(extension) {
                      platform
                         .get('/account/~/device/' + device.value)
                         .then(function (response) {
-                            //console.log("Within the formatalert", JSON.stringify(response.json(), null, 2));
+                            console.log("Within the formatalert", JSON.stringify(response.json(), null, 2));
                             if (response.json().emergencyServiceAddress) {
 
                                 street1 = response.json().emergencyServiceAddress.street;
@@ -445,7 +445,7 @@ function inboundRequest(req, res) {
  **/
 function handleSubscriptionNotification(msg) {
 
-    //console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
+    console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
     if (FILTER_DIRECTION === msg.body.activeCalls[0].direction && FILTER_TO === msg.body.activeCalls[0].to && FILTER_TELPHONY_STATUS === msg.body.telephonyStatus) {
         console.log("Calling to 511 has been initiated");
         console.log("The extension that initiated call to 511 is :",msg.body.extensionId);
