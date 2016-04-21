@@ -199,6 +199,7 @@ function emergencyLookUp(extension) {
             });
         });
 }
+
 /*
  Format the alert
  */
