@@ -59,20 +59,37 @@ You will need to create a `.env` file in the root directory of this application.
 1. Rename `.env.tmpl` to `.env`. From the terminal in Mac or Linux environments: `mv .env.tmpl .env`
 2. Open the `.env` for editing
 3. Enter the indicated values:
+
+    ## TC_Accounts
     * **RC_USERNAME=** Admin user's phone number
     * **RC_PASSWORD=** Admin user's password 
     * **RC_EXTENSION=** Admin user's extension
     * **RC_APP_KEY=** Your application's `app_key`
     * **RC_APP_SECRET=** Your application's `app_secret`
     * **RC_ENVIRONMENT=** Either `sandbox` -OR- `production`
-    * **RC_API_BASE_URL=** Only change when your application receives prodction access
-    * **ALERT_SMS**= Array of phone numbers for people you want to wake up with alerts
+    * **RC_API_BASE_URL=** Only change when your application receives production access
+
+    ## SA_Accounts
+    * **SA_USERNAME=** Service Account user's phone number
+    * **SA_PASSWORD=** Service Account user's password
+    * **SA_EXTENSION=** Service Account user's extension
+    * **SA_APP_KEY=** Service Account application `app_key`
+    * **SA_APP_SECRET=** Service Account application `user's password`
+    * **SA_ENVIRONMENT=** Either `sandbox` -OR- `production`
+    * **SA_API_BASE_URL=** Only change when your application receives production access
+
+    ## Call Filter Details
+    * **ALERT_SMS**= Array of phone numbers for people you want to wake up with alerts  ex: ["xxxxxxxxxx","xxxxxxxxxx"]
     * **SOURCE_PHONE_NUMBER**= Source phone number of the alert
-    * **PORT**= The port the HTTP server will listen upon;
-    * **FILTER_DIRECTION**= Either Outbound || Inbound the direction of phone calls;
+    * **PORT**= The port the HTTP server will listen upon
+    * **FILTER_DIRECTION**= Either Outbound || Inbound the direction of phone calls
     * **FILTER_TO**= 411 || 511 || 911 (ONLY USE 911 in Production)
-    * **FILTER_DEVICE_TYPE**= Array of phone type elements as strings, one of: HardPhone, SoftPhone, OtherPhone;
-    * **DEVICES_PER_PAGE**= Number for page aggregation, uses 500 by default;
+    * **FILTER_DEVICE_TYPE**= Array of phone type elements as strings, one of: HardPhone, SoftPhone, OtherPhone
+    * **DEVICES_PER_PAGE**= Number for page aggregation, uses 500 by default
+
+    ## USAGE PLAN LIMITS
+    * **MAX_DEVICES_PER_MIN**= Number of maximum devices for the Rate Limit throttling
+
 
 ## Operation
 
