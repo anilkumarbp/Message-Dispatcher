@@ -375,19 +375,25 @@ function handleSubscriptionNotification(msg) {
         console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
         console.log('The RingCentral Subscription notification was missing the body containing data.');
     } else {
-        if(!activeCalls && !activeCalls[0] && !telephonyStatus && !extensionId) {
+        if(!activeCalls || !telephonyStatus || !extensionId) {
             console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
             console.log('The subscription notification was missing required data for an SMS Alert to be sent.');
             // TODO: There is malformed data on the subscription, unable to lookup
             // TODO: Check if activeCalls is an array, if not...handle it instead
         } else {
-            if (FILTER_DIRECTION === activeCalls[0].direction && FILTER_TO === activeCalls[0].to && FILTER_TELPHONY_STATUS === telephonyStatus) {
-                console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
-                console.log("Calling to 511 has been initiated");
-                console.log("The extension that initiated call to 511 is :",msg.body.extensionId);
-                loadAlertDataAndSend(extensionId);
+            if( Array.isArray(activeCalls) ) {
+            // Filter it like an array
+                if (FILTER_DIRECTION === activeCalls[0].direction && FILTER_TO === activeCalls[0].to && FILTER_TELPHONY_STATUS === telephonyStatus) {
+                    console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
+                    console.log("Calling to 511 has been initiated");
+                    console.log("The extension that initiated call to 511 is :",msg.body.extensionId);
+                    loadAlertDataAndSend(extensionId);
+                } else {
+                    //console.log('DNQ');
+                }
             } else {
-                //console.log('DNQ');
+            // Filter it like whatever the hell it is...or maybe coersion?
+            console.log( 'activeCalls is type: ', typeof activeCalls );
             }
         }
     }
