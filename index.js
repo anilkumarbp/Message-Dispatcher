@@ -365,36 +365,46 @@ function inboundRequest(req, res) {
  * Subscription Event Handlers   - to capture events on telephonyStatus ~ callConnected
  **/
 function handleSubscriptionNotification(msg) {
+    var e911ErrorLogMessages = [];
+    var notificationDataForLogs = JSON.stringify(msg, null, 2);
     var body = msg.body;
     var activeCalls = msg.body.activeCalls;
     var telephonyStatus = msg.body.telephonyStatus;
     var extensionId = msg.body.extensionId;
 
     if(!msg.body) {
-        // TODO: There is a problem with the RingCentral Subscription Data or API data powering it
-        console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
-        console.log('The RingCentral Subscription notification was missing the body containing data.');
+        e911ErrorLogMessages += 'Missing msg.body used to qualify a call as an e911 SMS alert.';
     } else {
-        if(!activeCalls || !telephonyStatus || !extensionId) {
-            console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
-            console.log('The subscription notification was missing required data for an SMS Alert to be sent.');
-            // TODO: There is malformed data on the subscription, unable to lookup
-            // TODO: Check if activeCalls is an array, if not...handle it instead
-        } else {
-            if( Array.isArray(activeCalls) ) {
-            // Filter it like an array
-                if (FILTER_DIRECTION === activeCalls[0].direction && FILTER_TO === activeCalls[0].to && FILTER_TELPHONY_STATUS === telephonyStatus) {
-                    console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
-                    console.log("Calling to 511 has been initiated");
-                    console.log("The extension that initiated call to 511 is :",msg.body.extensionId);
-                    loadAlertDataAndSend(extensionId);
-                } else {
-                    //console.log('DNQ');
-                }
+        if(!activeCalls) {
+            e911ErrorLogMessages += 'Unable to validate if this is an e911 alert candidate, missing activeCalls property';
+        }
+        if(!telephonyStatus) {
+            e911ErrorLogMessages += 'Unable to validate if this is an e011 alert candidate, missing telephonyStatus property';
+        }
+        if(!extensionId) {
+            e911ErrorLogMessages += 'Unable to validate if this is an e911 alert candidate, missing extensionId property';
+        }
+
+        if( Array.isArray(activeCalls) ) {
+        // Filter it like an array
+            if (FILTER_DIRECTION === activeCalls[0].direction && FILTER_TO === activeCalls[0].to && FILTER_TELPHONY_STATUS === telephonyStatus) {
+                console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
+                console.log("Calling to 511 has been initiated");
+                console.log("The extension that initiated call to 511 is :",msg.body.extensionId);
+                loadAlertDataAndSend(extensionId);
             } else {
-            // Filter it like whatever the hell it is...or maybe coersion?
-            console.log( 'activeCalls is type: ', typeof activeCalls );
+                //console.log('DNQ');
             }
+        } else {
+            // Filter it like whatever the hell it is...or maybe coersion?
+            e911ErrorLogMessages += 'Unable to validate if this is an e911 alert candidate, type error: activeCalls is type: ' + typeof activeCalls + ', and should be array';
+        }
+    }
+
+    // We have errors, let's log them
+    if(0 !== e911ErrorLogMessages.length) {
+        for(var i = 0; i <= e911ErrorLogMessages.length; i++) {
+            console.error(e911ErrorLogMessages[i]);
         }
     }
 }
