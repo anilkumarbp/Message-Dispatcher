@@ -1,7 +1,9 @@
 'use strict';
 
 // Handle local development and testing
-require('dotenv').config();
+if( process.env.RC_ENVIRONMENT !== 'Production' ) {
+    require('dotenv').config();
+}
 
 // CONSTANTS - obtained from environment variables
 var PORT = process.env.PORT;
@@ -16,30 +18,61 @@ var ALERT_SMS = JSON.parse(process.env.ALERT_SMS);
 var RC = require('ringcentral');
 var helpers = require('ringcentral-helpers');
 var http = require('http');
-var async = require("async");
+
 var _tmpAlertMessage = '';
 
 
 // VARS
-var _cachedList = [];
-var _filteredDevices = [];
+var _devices=[];
 var _extensionFilterArray = [];
-var Extension = helpers.extension();
+var _alertExtensionData;
 var Message = helpers.message();
 var server = http.createServer();
+var street1,street2,city,state,zip,country,fromNumber;
 
-// Initialize the sdk
+// Initialize the sdk for RC
 var sdk = new RC({
     server: process.env.RC_API_BASE_URL,
     appKey: process.env.RC_APP_KEY,
-    appSecret: process.env.RC_APP_SECRET
+    appSecret: process.env.RC_APP_SECRET,
+    cachePrefix: process.env.RC_CACHE_PREFIX
+});
+
+//Initialize the sdk for SA
+var sdk_SA = new RC({
+    server: process.env.SA_API_BASE_URL,
+    appKey: process.env.SA_APP_KEY,
+    appSecret: process.env.SA_APP_SECRET
 });
 
 // Bootstrap Platform and Subscription
 var platform = sdk.platform();
+var platform_SA = sdk_SA.platform();
 var subscription = sdk.createSubscription();
 
-login();
+// Login into RC and SA accounts
+
+//login();
+login_SA();
+
+//Login to the SA Platform
+function login_SA() {
+    platform_SA.login({
+            username: process.env.SA_USERNAME,
+            password: process.env.SA_PASSWORD,
+            extension: process.env.SA_EXTENSION
+        })
+        .then(function (response) {
+            login();
+            console.log("The SA auth object is :", JSON.stringify(response.json(), null, 2));
+            console.log("Successfully logged into the Service Account");
+        })
+        .catch(function (e) {
+            console.log("Login Error into the Service Account Platform :", e);
+            throw e;
+        });
+}
+
 // Login to the RingCentral Platform
 function login() {
     return platform.login({
@@ -47,9 +80,13 @@ function login() {
             password: process.env.RC_PASSWORD,
             extension: process.env.RC_EXTENSION
         })
-        .then(init)
+        .then(function (response) {
+            console.log("The RC auth object is :", JSON.stringify(response.json(), null, 2));
+            console.log("Succesfully logged into the RC Account");
+            init();
+        })
         .catch(function (e) {
-            console.log("Login Error into the RingCentral Platform :", e);
+            console.log("Login Error into the Ringcentral Platform :", e);
             throw e;
         });
 }
@@ -66,13 +103,7 @@ function init(loginData) {
     var devices = [];
     var page = 1;
 
-    console.log("************************************");
-    console.log("The auth token is :", JSON.stringify(loginData.json(), null, 2));
-    console.log("************************************");
     function getDevicesPage() {
-
-        // get the list of devoce with the Admin user privileges
-
 
         return platform
             .get('/account/~/device', {
@@ -80,10 +111,11 @@ function init(loginData) {
                 perPage: process.env.DEVICES_PER_PAGE                                             //REDUCE NUMBER TO SPEED BOOTSTRAPPING
             })
             .then(function (response) {
+
+                //console.log("The account level devices is :", JSON.stringify(response.json(), null, 2));
                 var data = response.json();
-                console.log("************************************");
-                console.log("The devices for the account is :", JSON.stringify(data, null, 2));
-                console.log("************************************");
+
+                console.log("************** THE NUMBER OF ACCOUNT LEVEL DEVICES ARE : ***************",data.records.length);
 
                 devices = devices.concat(data.records);
                 if (data.navigation.nextPage) {
@@ -96,42 +128,88 @@ function init(loginData) {
 
     }
 
-
     /*
      Loop until you capture all devices
      */
     return getDevicesPage()
         .then(function (devices) {
-            console.log("************************************");
-              console.log("The Devices array is :", devices);
-            console.log("************************************");
-            _filteredDevices = devices.filter(getPhysicalDevices);
-            console.log("The Filtered devices array is :", _filteredDevices);
-            for (var i = 0; i < _filteredDevices.length; i++) {
-                //sleep.sleep(1);
-                organize(_filteredDevices[i]);
-            }
-            //return devices.filter(getPhysicalDevices);
-            //return devices.filter(getPhysicalDevices).map(organize);
+            console.log("************** The total devices getting filtered is : **********", devices.length);
+            return devices.filter(getPhysicalDevices);
+            //.map(organize);
         })
+        .then(createEventFilter)
         .then(startSubscription)
         .catch(function (e) {
-            console.error("Error: getDevicesPage(): " + e);
+            console.error(e);
             throw e;
         });
 
-
 }
 
+/*
+ To generate the presence Event Filter for subscription
+ */
+function createEventFilter(devices) {
+    _devices = devices;
+    for (var i = 0; i < devices.length; i++) {
+
+            var device = devices[i];
+            _extensionFilterArray.push(generatePresenceEventFilter(device));
+    }
+    return devices;
+}
+
+/*
+ Emergency Lookup while Lazy Loading Device Information
+ */
+
+function emergencyLookUp(extension) {
+    return new Promise(function (fulfill, reject) {
+        _alertExtensionData = extension.json();
+        var ext = _alertExtensionData;;
+        var devicesLength = _devices.length;
+        var device;
+        for (var i = 0; i < devicesLength; i++) {
+            if(_devices[i].extension.id === ext.id) {
+                device = _devices[i];
+            }
+        }
+         platform
+            .get('/account/~/device/' + device.id)
+            .then(function (response) {
+                if (response.json().emergencyServiceAddress) {
+                    console.log(' The Device Lookup is : ', JSON.stringify(response.json(),null,2));
+                    console.log(' LOOKUP EA DATA: ', response.json().emergencyServiceAddress);
+                    fulfill({
+                        street1: response.json().emergencyServiceAddress.street,
+                        street2: response.json().emergencyServiceAddress.street2,
+                        city: response.json().emergencyServiceAddress.city,
+                        state: response.json().emergencyServiceAddress.state,
+                        zip: response.json().emergencyServiceAddress.zip,
+                        country: response.json().emergencyServiceAddress.country
+                    });
+
+                }
+                else {
+                    var exMsg = "The Device :" + device.id + " has no emergency address attached to it. Kindly Add the Emergency Address to it.";
+                    console.log(exMsg);
+                    reject(false);
+                }
+            })
+            .catch(function (e) {
+                console.error("The error is in organize : " + e);
+                throw(e);
+            });
+        });
+}
 
 /*
  Format the alert
  */
-function formatALert(extension) {
-
+function formatAlert(emergencyAddress) {
     try {
-
-        var ext = extension.json();
+        var ext = _alertExtensionData;
+        console.log( 'FORMAT ALERT EXTENSION DATA ----->', ext);
 
         // For SMS, subject has 160 char max
         var messageAlert = '!! EMERGENCY ALERT: Outbound call to 911 !!';
@@ -139,20 +217,22 @@ function formatALert(extension) {
         messageAlert += '\n Last Name: ' + ext.contact.lastName;                                   // Last Name of the caller
         messageAlert += '\n Email: ' + ext.contact.email;                                          // Email id of the caller
         messageAlert += '\n From Extension: ' + ext.extensionNumber;                                // Extension Number of the caller
-        messageAlert += '\n From Number: ' + _cachedList[ext.id].phoneNumber;                       // Extension Number of the caller
+        messageAlert += '\n From Number: ' + ext.contact.businessPhone;                       // Extension Number of the caller
         messageAlert += '\n LOCATION: ';                                                            // Retreive the Emergency Address from _cachedList
-        messageAlert += '\n\t\t Street 1: ' + _cachedList[ext.id].emergencyServiceAddress.street;
-        messageAlert += '\n\t\t Street 2: ' + _cachedList[ext.id].emergencyServiceAddress.street2;
-        messageAlert += '\n\t\t City: ' + _cachedList[ext.id].emergencyServiceAddress.city;
-        messageAlert += '\n\t\t State: ' + _cachedList[ext.id].emergencyServiceAddress.state;
-        messageAlert += '\n\t\t Country: ' + _cachedList[ext.id].emergencyServiceAddress.country;
-        messageAlert += '\n\t\t Zip: ' + _cachedList[ext.id].emergencyServiceAddress.zip;
-
+        if(!emergencyAddress) {
+            messageAlert += '\n\t Missing Emergency Service Address info, you MUST lookup the location';
+        } else {
+            messageAlert += '\n\t\t Street 1: ' + emergencyAddress.street1;
+            messageAlert += '\n\t\t Street 2: ' + emergencyAddress.street2;
+            messageAlert += '\n\t\t City: ' + emergencyAddress.city;
+            messageAlert += '\n\t\t State: ' + emergencyAddress.state;
+            messageAlert += '\n\t\t Zip: ' + emergencyAddress.zip;
+            messageAlert += '\n\t\t Country: ' + emergencyAddress.country;
+        }
 
         _tmpAlertMessage = messageAlert;
-
+        console.log("The message is :",messageAlert);
         return messageAlert;
-
     } catch (e) {
         console.error("The error is in formatAlert : " + e);
         throw e;
@@ -165,19 +245,21 @@ function getPhysicalDevices(device) {
 }
 
 function generatePresenceEventFilter(item) {
+    //console.log("The item is :", item);
     if (!item) {
         ;
         throw new Error('Message-Dispatcher Error: generatePresenceEventFilter requires a parameter');
     } else {
+        //console.log("The Presence Filter added for the extension :" + item.extension.id + ' : /account/~/extension/' + item.extension.id + '/presence?detailedTelephonyState=true');
         return '/account/~/extension/' + item.extension.id + '/presence?detailedTelephonyState=true';
     }
 }
 
-function loadAlertDbataAndSend(extensionId) {
-    // TODO: Lookup Extension to capture user emergency information
+function loadAlertDataAndSend(extensionId) {
     return platform
         .get('/account/~/extension/' + extensionId)
-        .then(formatALert)                                                                      // format the alert message
+        .then(emergencyLookUp)
+        .then(formatAlert)                                                                      // format the alert message
         .then(sendAlerts)                                                                       // send SMS Alert
         .catch(function (e) {
             console.error("The error is in loadAlertDataAndSend : " + e);
@@ -186,31 +268,9 @@ function loadAlertDbataAndSend(extensionId) {
 }
 
 
-function organize(device) {
-    console.log("The device passed to generatepresenceeventfilter is :", device);
-    _extensionFilterArray.push(generatePresenceEventFilter(device));
-    //_cachedList[device.extension.id] = device;
-
-    return platform
-        .get('/account/~/device/' + device.id)
-        .then(function (response) {
-            //var item = {};
-            console.log("the phone number is :", JSON.stringify(response.json(), null, 2));
-            _cachedList[device.extension.id] = {};
-            _cachedList[device.extension.id].emergencyServiceAddress = response.json().emergencyServiceAddress;
-            _cachedList[device.extension.id].phoneNumber = response.json().phoneLines[0].phoneInfo.phoneNumber;
-
-        })
-        .catch((function (e) {
-            //console.error("The error is in organize : " + e);
-            
-            throw(e);
-        }));
-}
-
 function startSubscription(devices) { //FIXME MAJOR Use devices list somehow
 
-    console.log("STARTING TO CREATE SUBSCRIPTION ON ALL DEVICES");
+    console.log("********* STARTING TO CREATE SUBSCRIPTION ON ALL FILTERED DEVICES ***************");
     return subscription
         .setEventFilters(_extensionFilterArray)
         .register();
@@ -236,7 +296,15 @@ function sendAlerts(response) {
 
 function sendSms(number) {
 
-    return platform
+    // Create a function to send SMS using SA account
+    sendSms_SA(number);
+
+}
+
+
+function sendSms_SA(number) {
+
+    platform_SA
         .post(Message.createUrl({sms: true}), {
             from: {
                 phoneNumber: process.env.SOURCE_PHONE_NUMBER
@@ -248,11 +316,13 @@ function sendSms(number) {
             return response;
         })
         .catch(function (e) {
-            console.error("The error is in sendSMS : " + e.message);
-            throw (e);
+            console.error("The error in sendSMS :" + e.message);
+            throw(e);
         });
-}
 
+    return platform;
+
+}
 
 // Server Event Listeners
 server.on('request', inboundRequest);
@@ -295,10 +365,47 @@ function inboundRequest(req, res) {
  * Subscription Event Handlers   - to capture events on telephonyStatus ~ callConnected
  **/
 function handleSubscriptionNotification(msg) {
-    console.log('***************SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
-    if (FILTER_DIRECTION === msg.body.activeCalls[0].direction && FILTER_TO === msg.body.activeCalls[0].to && FILTER_TELPHONY_STATUS === msg.body.telephonyStatus) {
-        console.log("Calling to 511 has been initiated");
-        loadAlertDataAndSend(msg.body.extensionId);
+    var e911ErrorLogMessages = [];
+    var notificationDataForLogs = JSON.stringify(msg, null, 2);
+    var body = msg.body;
+    var activeCalls = msg.body.activeCalls;
+    var telephonyStatus = msg.body.telephonyStatus;
+    var extensionId = msg.body.extensionId;
+
+    if(!msg.body) {
+        e911ErrorLogMessages += 'Missing msg.body used to qualify a call as an e911 SMS alert.';
+    } else {
+        if(!activeCalls) {
+            e911ErrorLogMessages += 'Unable to validate if this is an e911 alert candidate, missing activeCalls property';
+        }
+        if(!telephonyStatus) {
+            e911ErrorLogMessages += 'Unable to validate if this is an e011 alert candidate, missing telephonyStatus property';
+        }
+        if(!extensionId) {
+            e911ErrorLogMessages += 'Unable to validate if this is an e911 alert candidate, missing extensionId property';
+        }
+
+        if( Array.isArray(activeCalls) ) {
+        // Filter it like an array
+            if (FILTER_DIRECTION === activeCalls[0].direction && FILTER_TO === activeCalls[0].to && FILTER_TELPHONY_STATUS === telephonyStatus) {
+                console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
+                console.log("Calling to 511 has been initiated");
+                console.log("The extension that initiated call to 511 is :",msg.body.extensionId);
+                loadAlertDataAndSend(extensionId);
+            } else {
+                //console.log('DNQ');
+            }
+        } else {
+            // Filter it like whatever the hell it is...or maybe coersion?
+            e911ErrorLogMessages += 'Unable to validate if this is an e911 alert candidate, type error: activeCalls is type: ' + typeof activeCalls + ', and should be array';
+        }
+    }
+
+    // We have errors, let's log them
+    if(0 !== e911ErrorLogMessages.length) {
+        for(var i = 0; i <= e911ErrorLogMessages.length; i++) {
+            console.error(e911ErrorLogMessages[i]);
+        }
     }
 }
 
