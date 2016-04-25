@@ -373,16 +373,16 @@ function handleSubscriptionNotification(msg) {
     var extensionId = msg.body.extensionId;
 
     if(!msg.body) {
-        e911ErrorLogMessages += 'Missing msg.body used to qualify a call as an e911 SMS alert.';
+        e911ErrorLogMessages.push('Missing msg.body used to qualify a call as an e911 SMS alert.');
     } else {
         if(!activeCalls) {
-            e911ErrorLogMessages += 'Unable to validate if this is an e911 alert candidate, missing activeCalls property';
+            e911ErrorLogMessages.push('Unable to validate if this is an e911 alert candidate, missing activeCalls property');
         }
         if(!telephonyStatus) {
-            e911ErrorLogMessages += 'Unable to validate if this is an e011 alert candidate, missing telephonyStatus property';
+            e911ErrorLogMessages.push('Unable to validate if this is an e011 alert candidate, missing telephonyStatus property');
         }
         if(!extensionId) {
-            e911ErrorLogMessages += 'Unable to validate if this is an e911 alert candidate, missing extensionId property';
+            e911ErrorLogMessages.push('Unable to validate if this is an e911 alert candidate, missing extensionId property');
         }
 
         if( Array.isArray(activeCalls) ) {
@@ -397,7 +397,7 @@ function handleSubscriptionNotification(msg) {
             }
         } else {
             // Filter it like whatever the hell it is...or maybe coersion?
-            e911ErrorLogMessages += 'Unable to validate if this is an e911 alert candidate, type error: activeCalls is type: ' + typeof activeCalls + ', and should be array';
+            e911ErrorLogMessages.push('Unable to validate if this is an e911 alert candidate, type error: activeCalls is type: ' + typeof activeCalls + ', and should be array');
         }
     }
 
