@@ -68,6 +68,7 @@ You will need to create a `.env` file in the root directory of this application.
     * **RC_APP_SECRET=** Your application's `app_secret`
     * **RC_ENVIRONMENT=** Either `sandbox` -OR- `production`
     * **RC_API_BASE_URL=** Only change when your application receives production access
+    * **RC_CACHE_PREFIX=** To identify that it is an RC Account for the platform object
 
     ## SA_Accounts
     * **SA_USERNAME=** Service Account user's phone number
@@ -77,6 +78,7 @@ You will need to create a `.env` file in the root directory of this application.
     * **SA_APP_SECRET=** Service Account application `user's password`
     * **SA_ENVIRONMENT=** Either `sandbox` -OR- `production`
     * **SA_API_BASE_URL=** Only change when your application receives production access
+    * **SA_CACHE_PREFIX=** To identify that it is SA Account for the platform object
 
     ## Call Filter Details
     * **ALERT_SMS**= Array of phone numbers for people you want to wake up with alerts  ex: ["xxxxxxxxxx","xxxxxxxxxx"]

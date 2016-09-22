@@ -60,7 +60,8 @@ function login_SA() {
     platform_SA.login({
             username: process.env.SA_USERNAME,
             password: process.env.SA_PASSWORD,
-            extension: process.env.SA_EXTENSION
+            extension: process.env.SA_EXTENSION,
+            cachePrefix: process.env.SA_CACHE_PREFIX
         })
         .then(function (response) {
             login();
@@ -78,7 +79,8 @@ function login() {
     return platform.login({
             username: process.env.RC_USERNAME,
             password: process.env.RC_PASSWORD,
-            extension: process.env.RC_EXTENSION
+            extension: process.env.RC_EXTENSION,
+            cachePrefix: process.env.RC_CACHE_PREFIX
         })
         .then(function (response) {
             console.log("The RC auth object is :", JSON.stringify(response.json(), null, 2));
@@ -112,7 +114,7 @@ function init(loginData) {
             })
             .then(function (response) {
 
-                //console.log("The account level devices is :", JSON.stringify(response.json(), null, 2));
+                console.log("The account level devices is :", JSON.stringify(response.json(), null, 2));
                 var data = response.json();
 
                 console.log("************** THE NUMBER OF ACCOUNT LEVEL DEVICES ARE : ***************",data.records.length);
@@ -250,7 +252,7 @@ function generatePresenceEventFilter(item) {
         ;
         throw new Error('Message-Dispatcher Error: generatePresenceEventFilter requires a parameter');
     } else {
-        //console.log("The Presence Filter added for the extension :" + item.extension.id + ' : /account/~/extension/' + item.extension.id + '/presence?detailedTelephonyState=true');
+        // console.log("The Presence Filter added for the extension :" + item.extension.id + ' : /account/~/extension/' + item.extension.id + '/presence?detailedTelephonyState=true');
         return '/account/~/extension/' + item.extension.id + '/presence?detailedTelephonyState=true';
     }
 }
@@ -286,6 +288,7 @@ function sendAlerts(response) {
     // Send alerts to each of the SMS in the array as defined in environment variable `ALERT_SMS`
     console.log("ALERT SMS SENT TO NUMBERS :", ALERT_SMS);
     return Promise.all(ALERT_SMS.map(function (ext) {
+        console.log("Inside Send Alert Success");
         return sendSms(ext);
     })).catch(function (e) {
         console.log("The error is with the promises", e);
@@ -304,7 +307,7 @@ function sendSms(number) {
 
 function sendSms_SA(number) {
 
-    platform_SA
+    return platform_SA
         .post(Message.createUrl({sms: true}), {
             from: {
                 phoneNumber: process.env.SOURCE_PHONE_NUMBER
@@ -319,8 +322,6 @@ function sendSms_SA(number) {
             console.error("The error in sendSMS :" + e.message);
             throw(e);
         });
-
-    return platform;
 
 }
 
@@ -372,17 +373,19 @@ function handleSubscriptionNotification(msg) {
     var telephonyStatus = msg.body.telephonyStatus;
     var extensionId = msg.body.extensionId;
 
+    console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
+        
     if(!msg.body) {
-        e911ErrorLogMessages += 'Missing msg.body used to qualify a call as an e911 SMS alert.';
+        e911ErrorLogMessages.push('Missing msg.body used to qualify a call as an e911 SMS alert.');
     } else {
         if(!activeCalls) {
-            e911ErrorLogMessages += 'Unable to validate if this is an e911 alert candidate, missing activeCalls property';
+            e911ErrorLogMessages.push('Unable to validate if this is an e911 alert candidate, missing activeCalls property');
         }
         if(!telephonyStatus) {
-            e911ErrorLogMessages += 'Unable to validate if this is an e011 alert candidate, missing telephonyStatus property';
+            e911ErrorLogMessages.push('Unable to validate if this is an e011 alert candidate, missing telephonyStatus property');
         }
         if(!extensionId) {
-            e911ErrorLogMessages += 'Unable to validate if this is an e911 alert candidate, missing extensionId property';
+            e911ErrorLogMessages.push('Unable to validate if this is an e911 alert candidate, missing extensionId property');
         }
 
         if( Array.isArray(activeCalls) ) {
@@ -397,7 +400,7 @@ function handleSubscriptionNotification(msg) {
             }
         } else {
             // Filter it like whatever the hell it is...or maybe coersion?
-            e911ErrorLogMessages += 'Unable to validate if this is an e911 alert candidate, type error: activeCalls is type: ' + typeof activeCalls + ', and should be array';
+            e911ErrorLogMessages.push('Unable to validate if this is an e911 alert candidate, type error: activeCalls is type: ' + typeof activeCalls + ', and should be array');
         }
     }
 
