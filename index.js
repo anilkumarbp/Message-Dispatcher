@@ -424,7 +424,7 @@ function dialedNumberInvalidator(configValue, logValue) {
     logValue = String(logValue); // Makes sure logValue has the match method available
     try {
         if(null !== logValue.match(validNumberFormatRegex) ) {
-            return configValue === logValue;
+            return (-1 !== logValue.indexOf(configValue) ) ? true : false;
         }
     } catch( e ) {
         errorMessage = 'The dialed (to) number is not a recognized service number.';
