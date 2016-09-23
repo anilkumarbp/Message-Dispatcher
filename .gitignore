@@ -39,3 +39,9 @@ node_modules
 
 # Ignore production .env file as these values should be loaded via the PaaS inteface for each instance of 1000 extensions to monitor (max)
 .env
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+.ebextensions/*
