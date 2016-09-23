@@ -390,7 +390,7 @@ function handleSubscriptionNotification(msg) {
 
         if( Array.isArray(activeCalls) ) {
         // Filter it like an array
-            if (FILTER_DIRECTION === activeCalls[0].direction && FILTER_TO === activeCalls[0].to && FILTER_TELPHONY_STATUS === telephonyStatus) {
+            if (FILTER_DIRECTION === activeCalls[0].direction && dialedNumberInvalidator(FILTER_TO,activeCalls[0].to) && FILTER_TELPHONY_STATUS === telephonyStatus) {
                 console.log('*************** SUBSCRIPTION NOTIFICATION: ****************(', JSON.stringify(msg, null, 2));
                 console.log("Calling to 511 has been initiated");
                 console.log("The extension that initiated call to 511 is :",msg.body.extensionId);
@@ -409,6 +409,27 @@ function handleSubscriptionNotification(msg) {
         for(var i = 0; i <= e911ErrorLogMessages.length; i++) {
             console.error(e911ErrorLogMessages[i]);
         }
+    }
+}
+
+function dialedNumberInvalidator(configValue, logValue) {
+    configValue = configValue || process.env.FILTER_TO;
+    var validNumberFormatRegex = /^\+?[1]?(411|511|911)/; // Checks for e.164 and non-e.164 formats of 911,511,411 service numbers
+    var errorMessage;
+    if(!logValue) {
+        errorMessage = 'Required parameter logValue was undefined or null when passed to the dialedNumberInvalidator function.';
+        console.error(errorMessage);
+        return false;
+    }
+    logValue = String(logValue); // Makes sure logValue has the match method available
+    try {
+        if(null !== logValue.match(validNumberFormatRegex) ) {
+            return configValue === logValue;
+        }
+    } catch( e ) {
+        errorMessage = 'The dialed (to) number is not a recognized service number.';
+        console.error(errorMessage);
+        throw new Error(errorMessage);
     }
 }
 
