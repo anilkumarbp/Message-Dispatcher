@@ -1,7 +1,7 @@
 Message-Dispatcher
 =======================
 
-Message-Dispatcher allows RingCentral Developers to subscribe to all extensions within your RingCentral account. This enables you to listen to presence events for extensions within your account and to dispatch a message ( send SMS ). For more information, read the [RingCentral Developer Guide - Notifications and Subscriptions](https://developer.ringcentral.com/api-docs/latest/index.html#!#Notifications.html).
+Message-Dispatcher is a demo app that allows a RingCentral admin user to subscribe to all extensions within your RingCentral account. This enables the app to listen to presence events for extensions within your account and to dispatch a message ( send SMS ) when specific numbers are dialled. For more information, read the [RingCentral Developer Guide - Notifications and Subscriptions](https://developer.ringcentral.com/api-docs/latest/index.html#!#Notifications.html).
 
 ## Prerequisites
 
